@@ -1,0 +1,18 @@
+[mob]
+builderhuman=Builder
+builderhumanname=Builder
+
+[mobmsg]
+buildertalk1=I want to build something beatiful
+buildertalk2=Placeholder message
+buildertalk3=Placeholder message
+buildertalk4=Placeholder message
+buildertalk5=Placeholder message
+
+[settlement]
+buildertip=test string
+
+[item]
+builderhat=Builder Hat
+buildershirt=Builder Shirt
+builderboots=Builder Boots
