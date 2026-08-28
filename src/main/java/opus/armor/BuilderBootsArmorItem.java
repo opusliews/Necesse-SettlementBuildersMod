@@ -1,4 +1,4 @@
-package armor;
+package opus.armor;
 
 import necesse.inventory.item.Item;
 import necesse.inventory.item.armorItem.BootsArmorItem;

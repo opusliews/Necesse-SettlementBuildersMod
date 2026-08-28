@@ -1,4 +1,4 @@
-package armor;
+package opus.armor;
 
 import necesse.entity.mobs.gameDamageType.DamageType;
 import necesse.inventory.item.Item;

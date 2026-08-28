@@ -16,3 +16,9 @@ buildertip=test string
 builderhat=Builder Hat
 buildershirt=Builder Shirt
 builderboots=Builder Boots
+
+[controls]
+openbuilderform=Open Builder Form
+
+[ui]
+blueprintselectarea=Create blueprint zone

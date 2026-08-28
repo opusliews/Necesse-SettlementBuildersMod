@@ -1,4 +1,4 @@
-package mobs;
+package opus.mobs;
 
 import necesse.engine.expeditions.SettlerExpedition;
 import necesse.engine.localization.message.GameMessage;

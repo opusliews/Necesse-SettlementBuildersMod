@@ -31,10 +31,6 @@ def gameDirectory = "D:/SteamLibrary/steamapps/common/Necesse"
 // ========== DO NOT EDIT BELOW THIS LINE ==========
 // =================================================
 
-// =================================================
-// ========== DO NOT EDIT BELOW THIS LINE ==========
-// =================================================
-
 // Name of the jar
 def jarName = "${project.ext.modName.replace(" ", "")}-${project.ext.gameVersion}-${project.ext.modVersion}"
 
@@ -74,6 +70,9 @@ dependencies {
     implementation fileTree("./mods/") // Add all mods located in local mods folder
 
     // Add any third party library dependencies here. Remember to use libDepends, so that they will be added to your jar on build
+    implementation 'com.google.code.gson:gson:2.8.9'
+    libDepends 'com.google.code.gson:gson:2.8.9'
+
     // These are some examples:
 //    libDepends group: 'com.google.guava', name: 'guava', version: '31.1-jre'
 //    libDepends files("path/to/library/jar.jar")
@@ -167,10 +166,20 @@ tasks.register('buildModJar', Jar) {
         }
     }
 
-    // Add mod output
     from sourceSets.main.java.getClassesDirectory()
-    // Add the dependencies
-    from configurations.libDepends.collect { it.isDirectory() ? it : zipTree(it) }
+
+    from {
+        configurations.libDepends.collect { dependency ->
+            dependency.isDirectory()
+                    ? dependency
+                    : zipTree(dependency).matching {
+                exclude 'module-info.class'
+                exclude 'META-INF/versions/**'
+            }
+        }
+    }
+
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 
     setArchiveFileName("${jarName}.jar")
     setDestinationDirectory(file(buildLocation))

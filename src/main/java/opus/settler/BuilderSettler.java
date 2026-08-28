@@ -1,4 +1,4 @@
-package settler;
+package opus.settler;
 
 import necesse.engine.localization.message.GameMessage;
 import necesse.engine.localization.message.LocalMessage;
