@@ -2,21 +2,27 @@ package opus.forms;
 
 import necesse.engine.gameLoop.tickManager.TickManager;
 import necesse.engine.gameTool.GameToolManager;
+import necesse.engine.localization.Localization;
+import necesse.engine.localization.message.GameMessage;
 import necesse.engine.localization.message.StaticMessage;
+import necesse.engine.network.client.Client;
 import necesse.engine.state.MainGame;
 import necesse.engine.window.GameWindow;
 import necesse.gfx.forms.Form;
-import necesse.gfx.forms.components.FormComponent;
+import necesse.gfx.forms.components.FormContentIconButton;
 import necesse.gfx.forms.components.FormInputSize;
+import necesse.gfx.forms.components.FormTextInput;
+import necesse.gfx.forms.components.localComponents.FormLocalLabel;
 import necesse.gfx.forms.components.localComponents.FormLocalTextButton;
+import necesse.gfx.gameFont.FontOptions;
 import necesse.gfx.ui.ButtonColor;
 import necesse.level.gameObject.GameObject;
 import necesse.level.gameTile.GameTile;
 import necesse.level.maps.Level;
-import opus.SettlementBuilders;
 import opus.tools.BlueprintData;
 import opus.tools.BlueprintElement;
 import opus.tools.BlueprintSelectionTool;
+import java.util.function.BiConsumer;
 
 import java.awt.*;
 import java.util.ArrayList;
@@ -28,41 +34,109 @@ import static opus.tools.BlueprintElement.isBlueprintTile;
 public class NewBlueprintForm extends Form {
 	private static NewBlueprintForm builderForm;
 	private static BlueprintSelectionTool blueprintTool;
+	private final FormTextInput blueprintNameInput;
+
+	private final BiConsumer<String, BlueprintData> onBlueprintCreated;
+
 	private final MainGame mainGame;
 
-	public NewBlueprintForm(MainGame mainGame) {
-		super("newBlueprintForm", 220, 120);
+	public NewBlueprintForm(MainGame mainGame, BiConsumer<String, BlueprintData> onBlueprintCreated) {
+		super("newBlueprintForm", 380, 110);
+
+		this.onBlueprintCreated = onBlueprintCreated;
 
 		this.mainGame = mainGame;
 
-		FormLocalTextButton CreateButton = this.addComponent(
+		this.addComponent(
+				new FormLocalLabel(
+						new StaticMessage("Blueprint Name"),
+						new FontOptions(16),
+						0,
+						72,
+						18
+				)
+		);
+
+		this.blueprintNameInput = this.addComponent(
+				new FormTextInput(
+						145,
+						7,
+						FormInputSize.SIZE_32,
+						180,
+						50
+				)
+		);
+
+		this.addComponent(
+				new FormContentIconButton(
+						350,
+						7,
+						FormInputSize.SIZE_24,
+						ButtonColor.BASE,
+						this.getInterfaceStyle().button_help_20,
+						new GameMessage[]{
+								new StaticMessage(
+										Localization.translate(
+												"itemtooltip",
+												"blueprinttoolhelp"
+										)
+								)
+						}
+				)
+		);
+
+		// Create button
+		FormLocalTextButton createButton = this.addComponent(
 				new FormLocalTextButton(
 						new StaticMessage("Create Blueprint"),
-						20,
-						20,
-						180,
+						30,
+						60,
+						155,
 						FormInputSize.SIZE_32,
 						ButtonColor.BASE
 				)
 		);
 
-		FormLocalTextButton CancelButton = this.addComponent(
+		FormLocalTextButton cancelButton = this.addComponent(
 				new FormLocalTextButton(
 						new StaticMessage("Cancel"),
-						20,
-						68,
-						180,
+						195,
+						60,
+						155,
 						FormInputSize.SIZE_32,
 						ButtonColor.BASE
 				)
 		);
 
-		CreateButton.onClicked(event -> {
-			if (blueprintTool.getSelection().isEmpty()) {
-				// TODO Handle Empty Selection
+		createButton.onClicked(event -> {
+			Rectangle selection = blueprintTool.getSelection();
+
+			if (selection == null || selection.isEmpty()) {
+				Client client = mainGame.getClient();
+				client.setMessage(
+						Localization.translate(
+								"misc",
+								"blueprintcreatedempty"
+						),
+						Color.RED
+				);
 				return;
 			}
-			Rectangle selection = blueprintTool.getSelection();
+
+			String blueprintName = blueprintNameInput.getText().trim();
+
+			if (blueprintName.isEmpty()) {
+				Client client = mainGame.getClient();
+				client.setMessage(
+						Localization.translate(
+								"misc",
+								"blueprintcreatednameless"
+						),
+						Color.RED
+				);
+				return;
+			}
+
 			Level level = blueprintTool.getLevel();
 
 			List<String> excludedObjectIDs = blueprintTool.getExcludedObjectIDs();
@@ -96,18 +170,76 @@ public class NewBlueprintForm extends Form {
 					}
 				}
 			}
-			if (!blueprintElements.isEmpty()) {
+			if (blueprintElements.isEmpty()) {
+				Client client = mainGame.getClient();
+				client.setMessage(
+						Localization.translate(
+								"misc",
+								"blueprintcreatedempty2"
+						),
+						Color.RED
+				);
+			}
+			else {
 				BlueprintData blueprintData = new BlueprintData(
 						selection.width, selection.height, blueprintElements);
-				System.out.println("Poop: Blueprint JSON:" + blueprintData.toJson());
+
+				if (onBlueprintCreated != null) {
+					onBlueprintCreated.accept(
+							blueprintName,
+							blueprintData
+					);
+				}
+
+				this.onCancel();
 			}
 		});
 
-		CancelButton.onClicked(event -> {
+		cancelButton.onClicked(event -> {
 			this.onCancel();
 		});
 
-		this.setPosition(10,30
+		this.setPosition(10, 30);
+	}
+
+	private void hideInventoryUI() {
+		mainGame.formManager.toolbar.setHidden(true);
+		mainGame.formManager.inventory.setHidden(true);
+		mainGame.formManager.crafting.setHidden(true);
+		mainGame.formManager.creative.setHidden(true);
+	}
+
+	public static boolean isBlueprintCreationOpen() {
+		return builderForm != null;
+	}
+
+	public static void openBlueprintCreation(
+			MainGame mainGame, BiConsumer<String, BlueprintData> onBlueprintCreated
+	) {
+		if (builderForm != null) {
+			return;
+		}
+
+		builderForm = new NewBlueprintForm(mainGame, onBlueprintCreated);
+
+		if (blueprintTool != null) {
+			GameToolManager.clearGameTool(blueprintTool);
+		}
+
+		mainGame.formManager.addComponent(builderForm);
+
+		blueprintTool = new BlueprintSelectionTool(
+				mainGame.getClient().getLevel(),
+				() -> {
+					if (builderForm != null) {
+						builderForm.onToolCancelled();
+					}
+				}
+		);
+
+		GameToolManager.setGameTool(
+				blueprintTool,
+				BlueprintSelectionTool.class
 		);
 	}
 
@@ -122,30 +254,8 @@ public class NewBlueprintForm extends Form {
 			return;
 		}
 
-		if (SettlementBuilders.openBuilderFormControl.isPressed()) {
-			if (builderForm == null) {
-				builderForm = new NewBlueprintForm(mainGame);
-
-				mainGame.formManager.addComponent(
-						(FormComponent)builderForm
-				);
-
-				if (blueprintTool != null) {
-					GameToolManager.clearGameTool(blueprintTool);
-				}
-				blueprintTool = new BlueprintSelectionTool(
-						mainGame.getClient().getLevel(),
-						() -> {
-							if (builderForm != null) {
-								builderForm.onToolCancelled();
-							}
-						}
-				);
-				GameToolManager.setGameTool(
-						blueprintTool,
-						BlueprintSelectionTool.class
-				);
-			}
+		if (builderForm != null) {
+			builderForm.hideInventoryUI();
 		}
 	}
 
@@ -156,6 +266,8 @@ public class NewBlueprintForm extends Form {
 
 		this.mainGame.formManager.removeComponent(this);
 		this.dispose();
+
+		this.mainGame.formManager.updateActive(true);
 	}
 
 	// Cancel Pressed handler
@@ -170,5 +282,7 @@ public class NewBlueprintForm extends Form {
 		}
 
 		this.dispose();
+
+		this.mainGame.formManager.updateActive(true);
 	}
 }
