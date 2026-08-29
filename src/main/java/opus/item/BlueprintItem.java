@@ -1,10 +1,12 @@
 package opus.item;
 
 import necesse.engine.GlobalData;
+import necesse.engine.gameLoop.tickManager.TickManager;
 import necesse.engine.localization.Localization;
 import necesse.engine.network.gameNetworkData.GNDItemMap;
 import necesse.engine.state.MainGame;
 import necesse.engine.util.GameBlackboard;
+import necesse.engine.window.GameWindow;
 import necesse.entity.mobs.PlayerInventoryItemAttackSlot;
 import necesse.entity.mobs.PlayerMob;
 import necesse.entity.mobs.itemAttacker.ItemAttackSlot;
@@ -13,23 +15,37 @@ import necesse.gfx.gameTexture.GameSprite;
 import necesse.gfx.gameTexture.GameTexture;
 import necesse.gfx.gameTooltips.ListGameTooltips;
 import necesse.inventory.InventoryItem;
+import necesse.inventory.PlaceableItemInterface;
 import necesse.inventory.item.Item;
 import necesse.inventory.item.ItemInteractAction;
 import necesse.level.maps.Level;
 import opus.forms.NewBlueprintForm;
 import opus.network.PacketBlueprintUpdate;
 import opus.tools.BlueprintData;
+import necesse.engine.registries.ObjectRegistry;
+import necesse.engine.registries.TileRegistry;
+import necesse.engine.util.GameMath;
+import necesse.gfx.camera.GameCamera;
+import necesse.inventory.PlayerInventorySlot;
+import necesse.level.gameObject.GameObject;
+import necesse.level.gameTile.GameTile;
 import opus.tools.BlueprintElement;
+import org.lwjgl.glfw.GLFW;
 
 import java.awt.*;
-import java.util.ArrayList;
 
-public class BlueprintItem extends Item implements ItemInteractAction {
+public class BlueprintItem extends Item implements ItemInteractAction, PlaceableItemInterface {
 	private static final String blueprintNameKey = "blueprintName";
 	private static final String blueprintDataKey = "blueprintData";
 
 	private GameTexture emptyTexture;
 	private GameTexture filledTexture;
+
+	private static boolean pageUpDown;
+	private static boolean pageDownDown;
+
+	private InventoryItem cachedBlueprintItem;
+	private BlueprintData cachedBlueprintData;
 
 	public BlueprintItem() {
 		super(1);
@@ -43,13 +59,38 @@ public class BlueprintItem extends Item implements ItemInteractAction {
 	}
 
 	public BlueprintData getBlueprintData(InventoryItem item) {
-		if (!hasBlueprint(item)) {
+		if (item != cachedBlueprintItem) {
+			setCachedBlueprintItem(item);
+		}
+
+		return cachedBlueprintData;
+	}
+
+	private BlueprintData loadBlueprintData(InventoryItem item) {
+		if (item == null) {
 			return null;
 		}
 
 		String json = item.getGndData().getString(blueprintDataKey);
 
+		if (json == null || json.isEmpty()) {
+			return null;
+		}
+
 		return BlueprintData.fromJson(json);
+	}
+
+	private void setCachedBlueprintItem(InventoryItem item) {
+		cachedBlueprintItem = item;
+		cachedBlueprintData = loadBlueprintData(item);
+	}
+
+	private void setCachedBlueprintData(
+			InventoryItem item,
+			BlueprintData blueprintData
+	) {
+		cachedBlueprintItem = item;
+		cachedBlueprintData = blueprintData;
 	}
 
 	public String getBlueprintName(InventoryItem item) {
@@ -124,6 +165,151 @@ public class BlueprintItem extends Item implements ItemInteractAction {
 		item.getGndData().setString(blueprintDataKey, "");
 	}
 
+	public static void frameTick(MainGame mainGame, TickManager tickManager, GameWindow gameWindow) {
+		boolean currentPageUp =
+				gameWindow.isKeyDown(GLFW.GLFW_KEY_PAGE_UP);
+
+		boolean currentPageDown =
+				gameWindow.isKeyDown(GLFW.GLFW_KEY_PAGE_DOWN);
+
+		if (mainGame.getClient() != null
+				&& mainGame.getClient().getPlayer() != null
+		) {
+			PlayerMob player = mainGame.getClient().getPlayer();
+			InventoryItem item = player.getSelectedItem();
+
+			if (item != null
+					&& item.item instanceof BlueprintItem
+			) {
+				BlueprintItem blueprintItem =
+						(BlueprintItem)item.item;
+
+				if (item != blueprintItem.cachedBlueprintItem) {
+					blueprintItem.setCachedBlueprintItem(item);
+				}
+
+				if (blueprintItem.cachedBlueprintData != null) {
+					ItemAttackSlot attackSlot =
+							player.getCurrentSelectedAttackSlot();
+
+					if (attackSlot instanceof PlayerInventoryItemAttackSlot) {
+						PlayerInventoryItemAttackSlot playerSlot =
+								(PlayerInventoryItemAttackSlot)attackSlot;
+
+						if (currentPageUp && !pageUpDown) {
+							blueprintItem.rotate(mainGame, playerSlot, false);
+						}
+
+						if (currentPageDown && !pageDownDown) {
+							blueprintItem.rotate(mainGame, playerSlot, true);
+						}
+					}
+				}
+			}
+		}
+
+		pageUpDown = currentPageUp;
+		pageDownDown = currentPageDown;
+	}
+
+	private void rotate(
+			MainGame mainGame,
+			PlayerInventoryItemAttackSlot playerSlot,
+			boolean clockwise
+	) {
+		InventoryItem item = playerSlot.getItem();
+
+		if (cachedBlueprintData == null
+				|| item == null
+				|| item != cachedBlueprintItem
+				|| item.item != this
+		) {
+			return;
+		}
+
+		if (clockwise)
+			cachedBlueprintData = cachedBlueprintData.rotateClockwise();
+		else
+			cachedBlueprintData = cachedBlueprintData.rotateCounterClockwise();
+
+		mainGame.getClient().network.sendPacket(
+				new PacketBlueprintUpdate(
+						playerSlot.slot.inventoryID,
+						playerSlot.slot.slot,
+						getRawBlueprintName(item),
+						cachedBlueprintData
+				)
+		);
+	}
+
+	private String getRawBlueprintName(InventoryItem item) {
+		String name = item.getGndData().getString(blueprintNameKey);
+
+		return name == null ? "" : name;
+	}
+
+	@Override
+	public void drawPlacePreview(
+			Level level,
+			int x,
+			int y,
+			GameCamera camera,
+			PlayerMob player,
+			InventoryItem item,
+			PlayerInventorySlot slot
+	) {
+		if (item != cachedBlueprintItem
+				|| cachedBlueprintData == null
+		) {
+			return;
+		}
+
+		BlueprintData blueprintData = cachedBlueprintData;
+
+		int originX = GameMath.getTileCoordinate(x);
+		int originY = GameMath.getTileCoordinate(y);
+
+		for (BlueprintElement element : blueprintData.getElements()) {
+			int tileX = originX + element.getX();
+			int tileY = originY + element.getY();
+
+			if (element.getTileID() != null) {
+				GameTile tile = TileRegistry.getTile(
+						element.getTileID()
+				);
+
+				if (tile != null) {
+					tile.drawPreview(
+							level,
+							tileX,
+							tileY,
+							0.5F,
+							player,
+							camera
+					);
+				}
+			}
+
+			if (element.getObjectID() != null) {
+				GameObject object = ObjectRegistry.getObject(
+						element.getObjectID()
+				);
+
+				if (object != null) {
+					object.drawMultiTilePreview(
+							level,
+							tileX,
+							tileY,
+							element.getRotation(),
+							0.5F,
+							player,
+							camera
+					);
+				}
+			}
+		}
+	}
+
 	@Override
 	public boolean canLevelInteract(
 			Level level,
@@ -194,6 +380,11 @@ public class BlueprintItem extends Item implements ItemInteractAction {
 										blueprintData
 								)
 						);
+
+						setCachedBlueprintData(
+								currentItem,
+								blueprintData
+						);
 					}
 			);
 		}
@@ -219,6 +410,10 @@ public class BlueprintItem extends Item implements ItemInteractAction {
 							playerSlot.slot.slot
 					)
 			);
+
+			if (item == cachedBlueprintItem) {
+				cachedBlueprintData = null;
+			}
 		}
 
 		return item;

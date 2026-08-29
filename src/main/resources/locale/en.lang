@@ -26,7 +26,7 @@ blueprintselectarea=Create blueprint zone
 
 [itemtooltip]
 blueprintemptytip=Click [input=mouse2] to create a new blueprint
-blueprintnonemptytip=Click [input=mouse1] to place this blueprint in the world\nClick [input=mouse2] to empty this blueprint (can't be restored)\nUse mouse scroll to rotate the blueprint prior to placement\nBlueprint will not be consumed
+blueprintnonemptytip=Click [input=mouse1] to place this blueprint in the world\nClick [input=mouse2] to empty this blueprint (can't be restored)\nUse Pageup and Pagedown rotate the blueprint prior to placement\nBlueprint will not be consumed
 blueprinttoolhelp=\n\n\nSelect the blueprint area by pressing [input=mouse1] and dragging.\n\nCtrl + [input=mouse1] a tile to exclude that tile type\nand the object at that cell, if any, from the blueprint.\n\nExcluded objects and tiles will not be part of the final blueprint\nand cannot be re-added after the blueprint is created.\n\nYou do not need to exclude every instance of the same object or tile.\nMarking one will exclude all instances of that same type.\n\nBlueprints can be renamed or edited in a Blueprint Workstation.\n\nEditing is limited to removing additional objects or tiles from the blueprint.\nTo change tiles or objects, or change blueprint dimensions, create a new blueprint instead.
 
 [misc]
