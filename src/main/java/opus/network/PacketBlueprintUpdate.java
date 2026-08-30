@@ -32,7 +32,7 @@ public class PacketBlueprintUpdate extends Packet {
 			this.blueprintJson = "";
 		} else {
 			this.blueprintName = reader.getNextString();
-			this.blueprintJson = reader.getNextString();
+			this.blueprintJson = reader.getNextStringLong();
 		}
 	}
 
@@ -54,7 +54,7 @@ public class PacketBlueprintUpdate extends Packet {
 		writer.putNextInt(slotIndex);
 		writer.putNextBoolean(false);
 		writer.putNextString(blueprintName);
-		writer.putNextString(this.blueprintJson);
+		writer.putNextStringLong(this.blueprintJson);
 	}
 
 	public PacketBlueprintUpdate(

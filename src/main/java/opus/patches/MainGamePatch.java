@@ -5,6 +5,8 @@ import necesse.engine.modLoader.annotations.ModMethodPatch;
 import necesse.engine.state.MainGame;
 import necesse.engine.window.GameWindow;
 import net.bytebuddy.asm.Advice;
+import opus.blueprint.BlueprintAreaHud;
+import opus.blueprint.BlueprintAreaSync;
 import opus.forms.NewBlueprintForm;
 import opus.item.BlueprintItem;
 
@@ -14,5 +16,15 @@ public class MainGamePatch {
     static void onExit(@Advice.This MainGame mainGame, @Advice.Argument(value=0) TickManager tickManager, @Advice.Argument(value=1) GameWindow window) {
         NewBlueprintForm.frameTick(mainGame, tickManager, window);
         BlueprintItem.frameTick(mainGame, tickManager, window);
+
+        if (mainGame.getClient() != null) {
+            BlueprintAreaSync.frameTick(
+                    mainGame.getClient()
+            );
+
+            if (mainGame.getClient().getLevel() != null) {
+                BlueprintAreaHud.ensureAdded(mainGame.getClient().getLevel());
+            }
+        }
     }
 }

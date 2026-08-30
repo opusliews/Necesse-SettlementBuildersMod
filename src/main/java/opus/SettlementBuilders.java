@@ -1,23 +1,21 @@
 package opus;
 
-import necesse.engine.registries.PacketRegistry;
+import necesse.engine.modLoader.annotations.ModEntry;
+import necesse.engine.registries.*;
 import opus.armor.BuilderBootsArmorItem;
 import opus.armor.BuilderHatArmorItem;
 import opus.armor.BuilderShirtArmorItem;
+import opus.blueprint.BlueprintAreaLevelData;
 import opus.item.BlueprintItem;
+import opus.logging.Logging;
 import opus.mobs.BuilderHumanMob;
-import necesse.engine.input.Control;
-import necesse.engine.modLoader.annotations.ModEntry;
-import necesse.engine.registries.ItemRegistry;
-import necesse.engine.registries.MobRegistry;
-import necesse.engine.registries.SettlerRegistry;
-import opus.network.PacketBlueprintUpdate;
+import opus.network.*;
 import opus.settler.BuilderSettler;
 
 @ModEntry
 public class SettlementBuilders {
     public void init() {
-        System.out.println("Poop: Mod is running!");
+        Logging.logMessage("Mod is running!");
 
         // Registrations
         SettlerRegistry.registerSettler("builder", new BuilderSettler());
@@ -27,6 +25,12 @@ public class SettlementBuilders {
         ItemRegistry.registerItem("builderboots", new BuilderBootsArmorItem(), 50.0F, true);
         ItemRegistry.registerItem("blueprintItem", new BlueprintItem(), 10.0F, true);
 
+        LevelDataRegistry.registerLevelData("opusblueprintareas", BlueprintAreaLevelData.class);
+
         PacketRegistry.registerPacket(PacketBlueprintUpdate.class);
+        PacketRegistry.registerPacket(PacketPlaceBlueprintArea.class);
+        PacketRegistry.registerPacket(PacketRequestBlueprintAreas.class);
+        PacketRegistry.registerPacket(PacketSyncBlueprintAreas.class);
+        PacketRegistry.registerPacket(PacketAddBlueprintArea.class);
     }
 }

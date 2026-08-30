@@ -21,6 +21,7 @@ import necesse.level.gameObject.GameObject;
 import necesse.level.gameTile.GameTile;
 import necesse.level.maps.Level;
 import necesse.level.maps.hudManager.HudDrawElement;
+import opus.logging.Logging;
 
 import java.awt.*;
 import java.util.ArrayList;
@@ -327,7 +328,7 @@ public class BlueprintSelectionTool implements GameTool {
 	}
 
 	protected void onSelectionChanged(Rectangle selection) {
-		System.out.println(
+		Logging.logMessage(
 				"Blueprint selection: "
 						+ selection.x + ", "
 						+ selection.y + " - "

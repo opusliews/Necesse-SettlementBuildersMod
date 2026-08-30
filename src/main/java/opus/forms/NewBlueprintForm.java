@@ -19,6 +19,7 @@ import necesse.gfx.ui.ButtonColor;
 import necesse.level.gameObject.GameObject;
 import necesse.level.gameTile.GameTile;
 import necesse.level.maps.Level;
+import opus.logging.Logging;
 import opus.tools.BlueprintData;
 import opus.tools.BlueprintElement;
 import opus.tools.BlueprintSelectionTool;
@@ -158,11 +159,11 @@ public class NewBlueprintForm extends Form {
 						be.setObjectID(object.getStringID());
 						be.setRotation(level.getObjectRotation(x, y));
 
-						System.out.println("Poop: Object found: " + object.getDisplayName());
+						Logging.logMessage("Object found: " + object.getDisplayName());
 					}
 					if (isBlueprintTile(tile) && !excludedTileIDs.contains(tile.getStringID())) {
 						be.setTileID(tile.getStringID());
-						System.out.println("Poop: Tile found: " + tile.getDisplayName());
+						Logging.logMessage("Tile found: " + tile.getDisplayName());
 					}
 
 					if (!be.isEmpty()) {
