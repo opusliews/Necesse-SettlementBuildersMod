@@ -18,25 +18,30 @@ public class BlueprintArea {
 
 	private final BlueprintData blueprintData;
 
+	private final int settlementUniqueID;
+
 	public BlueprintArea(
-		int originX,
-		int originY,
-		int width,
-		int height,
-		BlueprintData blueprintData
+			int settlementUniqueID,
+			int originX,
+			int originY,
+			int width,
+			int height,
+			BlueprintData blueprintData
 	) {
 		this(
-			UUID.randomUUID().toString(),
-			originX,
-			originY,
-			width,
-			height,
-			blueprintData
+				UUID.randomUUID().toString(),
+				settlementUniqueID,
+				originX,
+				originY,
+				width,
+				height,
+				blueprintData
 		);
 	}
 
 	private BlueprintArea(
 		String uniqueID,
+		int settlementUniqueID,
 		int originX,
 		int originY,
 		int width,
@@ -44,6 +49,7 @@ public class BlueprintArea {
 		BlueprintData blueprintData
 	) {
 		this.uniqueID = uniqueID;
+		this.settlementUniqueID = settlementUniqueID;
 		this.originX = originX;
 		this.originY = originY;
 		this.width = width;
@@ -69,6 +75,10 @@ public class BlueprintArea {
 
 	public int getHeight() {
 		return height;
+	}
+
+	public int getSettlementUniqueID() {
+		return settlementUniqueID;
 	}
 
 	public int getEndX() {
@@ -103,6 +113,7 @@ public class BlueprintArea {
 		SaveData save = new SaveData("BLUEPRINT_AREA");
 
 		save.addUnsafeString("uniqueID", uniqueID);
+		save.addInt("settlementUniqueID", settlementUniqueID);
 
 		save.addInt("originX", originX);
 		save.addInt("originY", originY);
@@ -120,13 +131,13 @@ public class BlueprintArea {
 
 	public static BlueprintArea fromLoadData(LoadData load) {
 		String uniqueID = load.getUnsafeString("uniqueID");
+		int settlementUniqueID =
+				load.getInt("settlementUniqueID",0,false);
 
 		int originX = load.getInt("originX");
-
 		int originY = load.getInt("originY");
 
 		int width = load.getInt("width");
-
 		int height = load.getInt("height");
 
 		String json = load.getSafeString("blueprintData", null, false);
@@ -138,12 +149,13 @@ public class BlueprintArea {
 		BlueprintData blueprintData = BlueprintData.fromJson(json);
 
 		return new BlueprintArea(
-			uniqueID,
-			originX,
-			originY,
-			width,
-			height,
-			blueprintData
+				uniqueID,
+				settlementUniqueID,
+				originX,
+				originY,
+				width,
+				height,
+				blueprintData
 		);
 	}
 }

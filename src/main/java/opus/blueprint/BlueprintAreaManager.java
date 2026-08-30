@@ -23,11 +23,12 @@ public class BlueprintAreaManager {
 	}
 
 	public BlueprintArea addArea(
-		int originX,
-		int originY,
-		int width,
-		int height,
-		BlueprintData blueprintData
+			int settlementUniqueID,
+			int originX,
+			int originY,
+			int width,
+			int height,
+			BlueprintData blueprintData
 	) {
 		if (blueprintData == null) {
 			throw new IllegalArgumentException(
@@ -37,11 +38,12 @@ public class BlueprintAreaManager {
 
 		BlueprintArea area =
 			new BlueprintArea(
-				originX,
-				originY,
-				width,
-				height,
-				blueprintData
+					settlementUniqueID,
+					originX,
+					originY,
+					width,
+					height,
+					blueprintData
 			);
 
 		areas.put(

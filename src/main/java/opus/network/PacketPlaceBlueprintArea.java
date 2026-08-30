@@ -1,19 +1,28 @@
 package opus.network;
 
+import necesse.engine.localization.Localization;
 import necesse.engine.network.NetworkPacket;
 import necesse.engine.network.Packet;
 import necesse.engine.network.PacketReader;
 import necesse.engine.network.PacketWriter;
+import necesse.engine.network.packet.PacketStatusMessage;
 import necesse.engine.network.server.Server;
 import necesse.engine.network.server.ServerClient;
+import necesse.engine.registries.ObjectRegistry;
+import necesse.engine.world.worldData.SettlementsWorldData;
 import necesse.inventory.InventoryItem;
 import necesse.inventory.PlayerInventorySlot;
+import necesse.level.gameObject.GameObject;
 import necesse.level.maps.Level;
+import necesse.level.maps.levelData.settlementData.ServerSettlementData;
 import opus.blueprint.BlueprintArea;
 import opus.blueprint.BlueprintAreaManager;
 import opus.item.BlueprintItem;
 import opus.logging.Logging;
 import opus.tools.BlueprintData;
+import opus.tools.BlueprintElement;
+
+import java.awt.*;
 
 public class PacketPlaceBlueprintArea extends Packet {
 	private final int originX;
@@ -53,6 +62,108 @@ public class PacketPlaceBlueprintArea extends Packet {
 
 		writer.putNextInt(inventoryID);
 		writer.putNextInt(slotIndex);
+	}
+
+	private boolean isEntirelyInsideSettlement(
+			ServerSettlementData settlement,
+			int originX,
+			int originY,
+			int width,
+			int height
+	) {
+		int endX = originX + width - 1;
+		int endY = originY + height - 1;
+
+		return settlement.boundsManager.isTileWithinBounds(
+				originX,
+				originY
+		)
+				&& settlement.boundsManager.isTileWithinBounds(
+				endX,
+				originY
+		)
+				&& settlement.boundsManager.isTileWithinBounds(
+				originX,
+				endY
+		)
+				&& settlement.boundsManager.isTileWithinBounds(
+				endX,
+				endY
+		);
+	}
+
+	private boolean overlapsExistingArea(
+			BlueprintAreaManager manager,
+			int originX,
+			int originY,
+			int width,
+			int height
+	) {
+		Rectangle bounds = new Rectangle(
+				originX,
+				originY,
+				width,
+				height
+		);
+
+		for (BlueprintArea area : manager.getAreas()) {
+			if (bounds.intersects(area.getTileBounds())) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	private boolean hasInvalidFloatingObjects(
+			Level level,
+			int originX,
+			int originY,
+			BlueprintData blueprintData
+	) {
+		for (BlueprintElement element : blueprintData.getElements()) {
+			String objectID = element.getObjectID();
+
+			if (objectID == null) {
+				continue;
+			}
+
+			GameObject object = ObjectRegistry.getObject(objectID);
+
+			if (object == null) {
+				continue;
+			}
+
+			int tileX = originX + element.getX();
+			int tileY = originY + element.getY();
+
+			// The object itself is allowed on liquid.
+			if (object.canPlaceOnLiquid) {
+				continue;
+			}
+
+			/*
+			 * If this blueprint cell also contains a tile,
+			 * that tile will be built before the object.
+			 *
+			 * Blueprint tiles currently cannot be liquid tiles,
+			 * so this provides the required solid surface.
+			 */
+			if (element.getTileID() != null) {
+				continue;
+			}
+
+			/*
+			 * Mirror GameObject.canPlace's liquid rule.
+			 */
+			if (level.isLiquidTile(tileX, tileY)
+					&& !level.getTile(tileX, tileY).overridesCannotPlaceOnLiquid
+			) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	@Override
@@ -102,10 +213,96 @@ public class PacketPlaceBlueprintArea extends Packet {
 			return;
 		}
 
+		SettlementsWorldData settlementsData = SettlementsWorldData.getSettlementsData(server);
+		ServerSettlementData settlement =
+				settlementsData.getOrLoadServerDataAtTile(
+						level.getIdentifier(),
+						originX,
+						originY
+				);
+
+		if (settlement == null) {
+			client.sendPacket(
+					new PacketStatusMessage(
+							Localization.translate(
+									"misc",
+									"blueprintplaceoutsidesettlement1"
+							),
+							Color.RED,
+							5
+					)
+			);
+
+			return;
+		}
+
+		if (!settlement.networkData.isClientPartOf(client)) {
+			client.sendPacket(
+					new PacketStatusMessage(
+							Localization.translate(
+									"misc",
+									"blueprintplaceothersettlement"
+							),
+							Color.RED,
+							5
+					)
+			);
+
+			return;
+		}
+
+		if (!isEntirelyInsideSettlement(
+				settlement, originX, originY, blueprintData.getWidth(), blueprintData.getHeight())) {
+			client.sendPacket(
+					new PacketStatusMessage(
+							Localization.translate(
+									"misc",
+									"blueprintplaceoutsidesettlement2"
+							),
+							Color.RED,
+							5
+					)
+			);
+
+			return;
+		}
+
+		if (hasInvalidFloatingObjects(level, originX, originY, blueprintData)) {
+			client.sendPacket(
+					new PacketStatusMessage(
+							Localization.translate(
+									"misc",
+									"blueprintplacefluid"
+							),
+							Color.RED,
+							20
+					)
+			);
+
+			return;
+		}
+
 		BlueprintAreaManager manager = BlueprintAreaManager.get(level);
+
+		if (overlapsExistingArea(
+				manager, originX, originY, blueprintData.getWidth(), blueprintData.getHeight())) {
+			client.sendPacket(
+					new PacketStatusMessage(
+							Localization.translate(
+									"misc",
+									"blueprintplaceoverlap"
+							),
+							Color.RED,
+							5
+					)
+			);
+
+			return;
+		}
 
 		BlueprintArea area =
 				manager.addArea(
+						settlement.uniqueID,
 						originX,
 						originY,
 						blueprintData.getWidth(),

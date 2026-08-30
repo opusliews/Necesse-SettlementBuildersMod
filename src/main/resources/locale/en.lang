@@ -33,3 +33,8 @@ blueprinttoolhelp=\n\n\nSelect the blueprint area by pressing [input=mouse1] and
 blueprintcreatedempty=Can't create an empty blueprint
 blueprintcreatedempty2=Can't create a blueprint with no tiles or objects
 blueprintcreatednameless=Can't create a blueprint with no name
+blueprintplaceoutsidesettlement1=Can't place a blueprint outside a settlement
+blueprintplaceoutsidesettlement2=A blueprint can only be placed entirely contained within a settlement
+blueprintplaceothersettlement=A blueprint can only be placed in a settlement you belong to
+blueprintplaceoverlap=Cannot place here, overlapping another blueprint
+blueprintplacefluid=Some objects in this blueprint do not have a solid tile underneath them. The tile was probably excluded when the blueprint was created or edited.\nThese objects cannot be placed over fluids.\nFill the affected fluid tiles with solid tiles, or place the blueprint somewhere else.
