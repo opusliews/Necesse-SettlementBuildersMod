@@ -18,6 +18,7 @@ import necesse.level.maps.levelData.settlementData.ServerSettlementData;
 import opus.blueprint.BlueprintArea;
 import opus.blueprint.BlueprintAreaManager;
 import opus.item.BlueprintItem;
+import opus.jobs.ConstructionLevelJob;
 import opus.logging.Logging;
 import opus.tools.BlueprintData;
 import opus.tools.BlueprintElement;
@@ -309,6 +310,16 @@ public class PacketPlaceBlueprintArea extends Packet {
 						blueprintData.getHeight(),
 						blueprintData
 				);
+
+		// TODO: improve walkability check?
+		for (Point workTile : area.getOutsideBorderTiles()) {
+			if (level.isSolidTile(workTile.x, workTile.y)) {
+				continue;
+			}
+
+			level.jobsLayer.addJob(
+					new ConstructionLevelJob(workTile.x, workTile.y, area.getUniqueID()));
+		}
 
 		Logging.logMessage(
 				"SERVER placed blueprint area "

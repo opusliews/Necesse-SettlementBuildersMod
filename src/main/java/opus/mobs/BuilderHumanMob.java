@@ -15,16 +15,16 @@ import java.util.List;
 
 public class BuilderHumanMob extends HumanShop {
     public BuilderHumanMob() {
-        super(500, 200, "construction");
+        super(500, 200, "builder");
         this.attackCooldown = 500;
         this.attackAnimTime = 500;
         this.setSwimSpeed(1.0F);
-        this.jobTypeHandler.getPriority("fishing").disabledBySettler = false;
+        this.jobTypeHandler.getPriority("construction").disabledBySettler = false;
         this.equipmentInventory.setItem(6, new InventoryItem("coppersword"));
         this.shop.addSellingItem("builderhat", new SellingShopItem()).setStaticPriceBasedOnHappiness(75, 150, 20);
         this.shop.addSellingItem("buildershirt", new SellingShopItem()).setStaticPriceBasedOnHappiness(75, 150, 20);
         this.shop.addSellingItem("builderboots", new SellingShopItem()).setStaticPriceBasedOnHappiness(75, 150, 20);
-        this.shop.addSellingItem("blueprintitem", new SellingShopItem()).setStaticPriceBasedOnHappiness(100, 200, 20);
+        this.shop.addSellingItem("blueprintItem", new SellingShopItem()).setStaticPriceBasedOnHappiness(100, 200, 20);
     }
 
     public LootTable getLootTable() {

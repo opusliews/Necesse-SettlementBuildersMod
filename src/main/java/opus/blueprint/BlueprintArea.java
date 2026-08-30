@@ -5,6 +5,8 @@ import necesse.engine.save.SaveData;
 import opus.tools.BlueprintData;
 
 import java.awt.*;
+import java.util.List;
+import java.util.ArrayList;
 import java.util.UUID;
 
 public class BlueprintArea {
@@ -107,6 +109,28 @@ public class BlueprintArea {
 			width,
 			height
 		);
+	}
+
+	public List<Point> getOutsideBorderTiles() {
+		List<Point> tiles = new ArrayList<>();
+
+		int left = originX - 1;
+		int right = originX + width;
+		int top = originY - 1;
+		int bottom = originY + height;
+
+		for (int x = left; x <= right; x++) {
+			tiles.add(new Point(x, top));
+			tiles.add(new Point(x, bottom));
+		}
+
+		for (int y = originY; y < originY + height; y++) {
+			tiles.add(new Point(left, y));
+
+			tiles.add(new Point(right, y));
+		}
+
+		return tiles;
 	}
 
 	public SaveData getSaveData() {

@@ -9,9 +9,11 @@ import opus.armor.BuilderHatArmorItem;
 import opus.armor.BuilderShirtArmorItem;
 import opus.blueprint.BlueprintAreaLevelData;
 import opus.item.BlueprintItem;
+import opus.jobs.ConstructionLevelJob;
 import opus.logging.Logging;
 import opus.mobs.BuilderHumanMob;
 import opus.network.*;
+import opus.patches.MainGamePatch;
 import opus.settler.BuilderSettler;
 
 @ModEntry
@@ -39,6 +41,13 @@ public class SettlementBuilders {
                         new LocalMessage("jobs", "constructionname"),
                         new LocalMessage("jobs", "constructiontip")
                 )
+        );
+
+        LevelJobRegistry.registerJob(
+                "construction",
+                ConstructionLevelJob.class,
+                ConstructionLevelJob::handler,
+                "construction"
         );
 
         PacketRegistry.registerPacket(PacketBlueprintUpdate.class);

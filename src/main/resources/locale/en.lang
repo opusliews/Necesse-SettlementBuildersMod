@@ -6,6 +6,9 @@ builderhumanname=Builder
 constructionname=Construction
 constructiontip=Building from blueprints, requires objects and tiles available in any settlement chest
 
+[activities]
+construction=Constructing
+
 [mobmsg]
 buildertalk1=I want to build something beatiful
 buildertalk2=Give me a hammer and a plan, and I'll handle the rest
@@ -43,4 +46,4 @@ blueprintplaceoutsidesettlement1=Can't place a blueprint outside a settlement
 blueprintplaceoutsidesettlement2=A blueprint can only be placed entirely contained within a settlement
 blueprintplaceothersettlement=A blueprint can only be placed in a settlement you belong to
 blueprintplaceoverlap=Cannot place here, overlapping another blueprint
-blueprintplacefluid=Some objects in this blueprint do not have a solid tile underneath them. The tile was probably excluded when the blueprint was created or edited.\nThese objects cannot be placed over fluids.\nFill the affected fluid tiles with solid tiles, or place the blueprint somewhere else.
+blueprintplacefluid=Some objects in this blueprint do not have a solid tile underneath them.\nThe tile was probably excluded when the blueprint was created or edited.\n\nThese objects cannot be placed over fluids.\n\nFill the affected fluid tiles with solid tiles, or place the blueprint somewhere else.
