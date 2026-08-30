@@ -1,7 +1,9 @@
 package opus;
 
+import necesse.engine.localization.message.LocalMessage;
 import necesse.engine.modLoader.annotations.ModEntry;
 import necesse.engine.registries.*;
+import necesse.entity.mobs.job.JobType;
 import opus.armor.BuilderBootsArmorItem;
 import opus.armor.BuilderHatArmorItem;
 import opus.armor.BuilderShirtArmorItem;
@@ -14,6 +16,8 @@ import opus.settler.BuilderSettler;
 
 @ModEntry
 public class SettlementBuilders {
+    public static int constructionJobTypeID;
+
     public void init() {
         Logging.logMessage("Mod is running!");
 
@@ -26,6 +30,16 @@ public class SettlementBuilders {
         ItemRegistry.registerItem("blueprintItem", new BlueprintItem(), 10.0F, true);
 
         LevelDataRegistry.registerLevelData("opusblueprintareas", BlueprintAreaLevelData.class);
+
+        constructionJobTypeID = JobTypeRegistry.registerType(
+                "construction",
+                new JobType(
+                        true,
+                        true,
+                        new LocalMessage("jobs", "constructionname"),
+                        new LocalMessage("jobs", "constructiontip")
+                )
+        );
 
         PacketRegistry.registerPacket(PacketBlueprintUpdate.class);
         PacketRegistry.registerPacket(PacketPlaceBlueprintArea.class);

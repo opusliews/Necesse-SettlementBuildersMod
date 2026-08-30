@@ -15,7 +15,7 @@ import java.util.List;
 
 public class BuilderHumanMob extends HumanShop {
     public BuilderHumanMob() {
-        super(500, 200, "builder");
+        super(500, 200, "construction");
         this.attackCooldown = 500;
         this.attackAnimTime = 500;
         this.setSwimSpeed(1.0F);
@@ -24,7 +24,7 @@ public class BuilderHumanMob extends HumanShop {
         this.shop.addSellingItem("builderhat", new SellingShopItem()).setStaticPriceBasedOnHappiness(75, 150, 20);
         this.shop.addSellingItem("buildershirt", new SellingShopItem()).setStaticPriceBasedOnHappiness(75, 150, 20);
         this.shop.addSellingItem("builderboots", new SellingShopItem()).setStaticPriceBasedOnHappiness(75, 150, 20);
-
+        this.shop.addSellingItem("blueprintitem", new SellingShopItem()).setStaticPriceBasedOnHappiness(100, 200, 20);
     }
 
     public LootTable getLootTable() {
@@ -32,7 +32,7 @@ public class BuilderHumanMob extends HumanShop {
     }
 
     protected ArrayList<GameMessage> getMessages(ServerClient client) {
-        ArrayList<GameMessage> out = this.getLocalMessages("buildertalk", 5);
+        ArrayList<GameMessage> out = this.getLocalMessages("buildertalk", 7);
 
         return out;
     }

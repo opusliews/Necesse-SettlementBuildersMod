@@ -2,12 +2,18 @@
 builderhuman=Builder
 builderhumanname=Builder
 
+[jobs]
+constructionname=Construction
+constructiontip=Building from blueprints, requires objects and tiles available in any settlement chest
+
 [mobmsg]
 buildertalk1=I want to build something beatiful
-buildertalk2=Placeholder message
-buildertalk3=Placeholder message
-buildertalk4=Placeholder message
-buildertalk5=Placeholder message
+buildertalk2=Give me a hammer and a plan, and I'll handle the rest
+buildertalk3=Measure twice, build once
+buildertalk4=Someone has to keep these walls standing
+buildertalk5=Building is easy. Building well takes skill.
+buildertalk6=This settlement could use a few improvements
+buildertalk7=Strong walls make for peaceful nights
 
 [settlement]
 buildertip=test string
