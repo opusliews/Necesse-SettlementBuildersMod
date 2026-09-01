@@ -139,6 +139,5 @@ public class BlueprintAreaManager {
 				area
 			);
 		}
-		clear();
 	}
 }

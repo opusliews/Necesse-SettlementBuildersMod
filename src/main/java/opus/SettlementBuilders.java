@@ -54,5 +54,8 @@ public class SettlementBuilders {
         PacketRegistry.registerPacket(PacketRequestBlueprintAreas.class);
         PacketRegistry.registerPacket(PacketSyncBlueprintAreas.class);
         PacketRegistry.registerPacket(PacketAddBlueprintArea.class);
+        PacketRegistry.registerPacket(PacketRemoveBlueprintArea.class);
+        PacketRegistry.registerPacket(PacketBuilderTilePlaceSound.class);
+        PacketRegistry.registerPacket(PacketBuilderObjectPlaceSound.class);
     }
 }

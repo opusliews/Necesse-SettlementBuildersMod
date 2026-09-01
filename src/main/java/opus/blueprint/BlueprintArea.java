@@ -35,6 +35,8 @@ public class BlueprintArea {
 	private boolean materialsBlocked;
 	private String constructionBlockedReason;
 
+	private boolean constructionComplete;
+
 	private final Map<Integer, Map<String, Integer>> builderMaterialAllocations = new HashMap<>();
 
 	private final Set<Integer> assignedBuilderIDs = new HashSet<>();
@@ -55,6 +57,7 @@ public class BlueprintArea {
 				width,
 				height,
 				blueprintData,
+				false,
 				false
 		);
 	}
@@ -67,7 +70,8 @@ public class BlueprintArea {
 		int width,
 		int height,
 		BlueprintData blueprintData,
-		boolean constructionStarted
+		boolean constructionStarted,
+		boolean constructionComplete
 	) {
 		this.uniqueID = uniqueID;
 		this.settlementUniqueID = settlementUniqueID;
@@ -77,6 +81,7 @@ public class BlueprintArea {
 		this.height = height;
 		this.blueprintData = blueprintData;
 		this.constructionStarted = constructionStarted;
+		this.constructionComplete = constructionComplete;
 	}
 
 	public String getUniqueID() {
@@ -200,6 +205,76 @@ public class BlueprintArea {
 		return null;
 	}
 
+	public BlueprintObjectTarget findFirstObjectTarget(Level level) {
+		for (int y = 0; y < height; y++) {
+			for (int x = 0; x < width; x++) {
+				BlueprintElement element = blueprintData.getElementAt(x, y);
+
+				if (!isObjectPlacementElement(element)) {
+					continue;
+				}
+
+				int worldX = originX + x;
+				int worldY = originY + y;
+
+				if (!isObjectComplete(level, element, worldX, worldY)) {
+					return new BlueprintObjectTarget(
+							worldX,
+							worldY,
+							element.getObjectID(),
+							element.getRotation()
+					);
+				}
+			}
+		}
+
+		return null;
+	}
+
+	private boolean isBlueprintObjectComplete(
+			Level level,
+			BlueprintElement element,
+			int worldX,
+			int worldY
+	) {
+		if (element == null || element.getObjectID() == null) {
+			return true;
+		}
+
+		GameObject wantedObject = ObjectRegistry.getObject(element.getObjectID());
+
+		if (wantedObject == null) {
+			return false;
+		}
+
+		if (wantedObject.isMultiTileMaster()) {
+			return isObjectComplete(level, element, worldX, worldY);
+		}
+
+		Point masterPos = (Point)wantedObject
+				.getMultiTile(element.getRotation())
+				.getMasterTilePos(worldX, worldY)
+				.orElse(null);
+
+		if (masterPos == null) {
+			return false;
+		}
+
+		int localMasterX = masterPos.x - originX;
+		int localMasterY = masterPos.y - originY;
+
+		BlueprintElement masterElement =
+				blueprintData.getElementAt(localMasterX, localMasterY);
+
+		return masterElement != null
+				&& isObjectComplete(
+				level,
+				masterElement,
+				masterPos.x,
+				masterPos.y
+		);
+	}
+
 	public BlueprintClearTarget findFirstClearTarget(Level level) {
 		for (int y = 0; y < height; y++) {
 			for (int x = 0; x < width; x++) {
@@ -233,6 +308,10 @@ public class BlueprintArea {
 					}
 
 					if (level.getObjectRotation(worldX, worldY) != element.getRotation()) {
+						return new BlueprintClearTarget(BlueprintClearTarget.Type.OBJECT, worldX, worldY);
+					}
+
+					if (!isBlueprintObjectComplete(level, element, worldX, worldY)) {
 						return new BlueprintClearTarget(BlueprintClearTarget.Type.OBJECT, worldX, worldY);
 					}
 				}
@@ -289,6 +368,35 @@ public class BlueprintArea {
 		);
 
 		save.addBoolean("constructionStarted", constructionStarted);
+		save.addBoolean("constructionComplete", constructionComplete);
+
+		if (!assignedBuilderIDs.isEmpty()) {
+			SaveData buildersSave = new SaveData("BUILDERS");
+
+			for (int builderUniqueID : assignedBuilderIDs) {
+				SaveData builderSave = new SaveData("BUILDER");
+				builderSave.addInt("uniqueID", builderUniqueID);
+
+				Map<String, Integer> allocation = builderMaterialAllocations.get(builderUniqueID);
+
+				if (allocation != null && !allocation.isEmpty()) {
+					SaveData allocationSave = new SaveData("ALLOCATION");
+
+					for (Map.Entry<String, Integer> entry : allocation.entrySet()) {
+						SaveData itemSave = new SaveData("ITEM");
+						itemSave.addUnsafeString("itemID", entry.getKey());
+						itemSave.addInt("amount", entry.getValue());
+						allocationSave.addSaveData(itemSave);
+					}
+
+					builderSave.addSaveData(allocationSave);
+				}
+
+				buildersSave.addSaveData(builderSave);
+			}
+
+			save.addSaveData(buildersSave);
+		}
 
 		return save;
 	}
@@ -508,6 +616,18 @@ public class BlueprintArea {
 		return materials;
 	}
 
+	public boolean isConstructionComplete() {
+		return constructionComplete;
+	}
+
+	public void setConstructionComplete(boolean constructionComplete) {
+		this.constructionComplete = constructionComplete;
+	}
+
+	public boolean hasAssignedBuilders() {
+		return !assignedBuilderIDs.isEmpty();
+	}
+
 	public static BlueprintArea fromLoadData(LoadData load) {
 		String uniqueID = load.getUnsafeString("uniqueID");
 		int settlementUniqueID =
@@ -528,8 +648,9 @@ public class BlueprintArea {
 		BlueprintData blueprintData = BlueprintData.fromJson(json);
 
 		boolean constructionStarted = load.getBoolean("constructionStarted", false, false);
+		boolean constructionComplete = load.getBoolean("constructionComplete", false, false);
 
-		return new BlueprintArea(
+		BlueprintArea area = new BlueprintArea(
 				uniqueID,
 				settlementUniqueID,
 				originX,
@@ -537,7 +658,42 @@ public class BlueprintArea {
 				width,
 				height,
 				blueprintData,
-				constructionStarted
+				constructionStarted,
+				constructionComplete
 		);
+
+		LoadData buildersSave = load.getFirstLoadDataByName("BUILDERS");
+
+		if (buildersSave != null) {
+			for (Object builderObject : buildersSave.getLoadDataByName("BUILDER")) {
+				LoadData builderLoad = (LoadData)builderObject;
+				int builderUniqueID = builderLoad.getInt("uniqueID");
+
+				area.assignedBuilderIDs.add(builderUniqueID);
+
+				LoadData allocationSave = builderLoad.getFirstLoadDataByName("ALLOCATION");
+
+				if (allocationSave != null) {
+					Map<String, Integer> allocation = new LinkedHashMap<>();
+
+					for (Object itemObject : allocationSave.getLoadDataByName("ITEM")) {
+						LoadData itemLoad = (LoadData)itemObject;
+
+						String itemID = itemLoad.getUnsafeString("itemID");
+						int amount = itemLoad.getInt("amount");
+
+						if (amount > 0) {
+							allocation.put(itemID, amount);
+						}
+					}
+
+					if (!allocation.isEmpty()) {
+						area.builderMaterialAllocations.put(builderUniqueID, allocation);
+					}
+				}
+			}
+		}
+
+		return area;
 	}
 }

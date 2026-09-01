@@ -2,21 +2,22 @@ package opus.jobs;
 
 import necesse.engine.localization.Localization;
 import necesse.engine.localization.message.LocalMessage;
+import necesse.engine.network.packet.PacketPlaceObject;
 import necesse.engine.network.packet.PacketPlaceTile;
 import necesse.engine.registries.ItemRegistry;
 import necesse.engine.registries.ObjectLayerRegistry;
+import necesse.engine.registries.ObjectRegistry;
 import necesse.engine.registries.TileRegistry;
 import necesse.engine.save.LoadData;
 import necesse.engine.save.SaveData;
 import necesse.engine.world.worldData.SettlementsWorldData;
 import necesse.entity.AbstractDamageResult;
 import necesse.entity.mobs.Mob;
+import necesse.entity.mobs.friendly.human.HumanMob;
 import necesse.entity.mobs.job.*;
-import necesse.entity.mobs.job.activeJob.ActiveJob;
-import necesse.entity.mobs.job.activeJob.ActiveJobResult;
-import necesse.entity.mobs.job.activeJob.PickupSettlementStorageActiveJob;
-import necesse.entity.mobs.job.activeJob.TileActiveJob;
+import necesse.entity.mobs.job.activeJob.*;
 import necesse.entity.pickup.ItemPickupEntity;
+import necesse.gfx.GameColor;
 import necesse.inventory.InventoryItem;
 import necesse.inventory.InventoryRange;
 import necesse.level.gameObject.AirObject;
@@ -31,12 +32,12 @@ import necesse.level.maps.levelData.settlementData.SettlementInventory;
 import necesse.level.maps.levelData.settlementData.SettlementStoragePickupSlot;
 import necesse.level.maps.levelData.settlementData.storage.SettlementStorageItemIDIndex;
 import necesse.level.maps.levelData.settlementData.storage.SettlementStorageRecords;
-import opus.blueprint.BlueprintArea;
-import opus.blueprint.BlueprintAreaManager;
-import opus.blueprint.BlueprintClearTarget;
-import opus.blueprint.BlueprintTileTarget;
+import opus.blueprint.*;
 import opus.logging.Logging;
 import opus.mobs.BuilderHumanMob;
+import opus.network.PacketBuilderObjectPlaceSound;
+import opus.network.PacketBuilderTilePlaceSound;
+import opus.network.PacketSyncBlueprintAreas;
 
 import java.awt.*;
 import java.util.List;
@@ -154,14 +155,27 @@ public class ConstructionLevelJob extends TileLevelJob {
 
 				if (area != null) {
 					int builderUniqueID = worker.getMobWorker().getUniqueID();
-					area.releaseBuilder(builderUniqueID);
 
-					Logging.logMessage(
-							"Builder "
-									+ builderUniqueID
-									+ " left construction project "
-									+ blueprintAreaUniqueID
-					);
+					if (area.isConstructionComplete() && !worker.getWorkInventory().isEmpty()) {
+						Logging.logMessage(
+								"Builder "
+										+ builderUniqueID
+										+ " interrupted during completed blueprint cleanup and remains assigned"
+						);
+					} else {
+						area.releaseBuilder(builderUniqueID);
+
+						Logging.logMessage(
+								"Builder "
+										+ builderUniqueID
+										+ " left construction project "
+										+ blueprintAreaUniqueID
+						);
+
+						if (area.isConstructionComplete() && !area.hasAssignedBuilders()) {
+							finishBlueprintCleanup(getLevel(), area);
+						}
+					}
 				}
 			}
 
@@ -248,9 +262,41 @@ public class ConstructionLevelJob extends TileLevelJob {
 				return valid;
 			}
 
+			/*
+			 * Calculate working speed
+			 * From 5 seconds to 0.5 seconds of delay, based on happiness
+			 */
+			private int getWorkActionDelay(EntityJobWorker worker) {
+				int happiness = Math.max(0, Math.min(100, ((HumanMob)worker.getMobWorker()).getSettlerHappiness()));
+				return 5000 - happiness * 45;
+			}
+
 			@Override
 			public ActiveJobResult perform() {
-				int actionDelay = 1000; // TODO calculate based on happiness
+				int actionDelay = getWorkActionDelay(worker);
+				long currentTime = getLevel().getTime();
+
+				BlueprintArea area = BlueprintAreaManager
+						.get(getLevel())
+						.getArea(blueprintAreaUniqueID);
+
+				if (area == null) {
+					return ActiveJobResult.FAILED;
+				}
+
+				if (area.isConstructionComplete()) {
+					if (currentTime < nextActionTime) {
+						return ActiveJobResult.PERFORMING;
+					}
+
+					if (queueCompletionCleanupJobs(worker, priority, area, sequence)) {
+						return ActiveJobResult.FINISHED;
+					}
+
+					nextActionTime = currentTime + actionDelay;
+					return ActiveJobResult.PERFORMING;
+				}
+
 				if (!started) {
 					started = true;
 					nextActionTime = getLevel().getTime() + actionDelay;
@@ -267,16 +313,8 @@ public class ConstructionLevelJob extends TileLevelJob {
 					return ActiveJobResult.PERFORMING;
 				}
 
-				long currentTime = getLevel().getTime();
-
 				if (currentTime < nextActionTime) {
 					return ActiveJobResult.PERFORMING;
-				}
-
-				BlueprintArea area = BlueprintAreaManager.get(getLevel()).getArea(blueprintAreaUniqueID);
-
-				if (area == null) {
-					return ActiveJobResult.FAILED;
 				}
 
 				BlueprintClearTarget clearTarget = area.findFirstClearTarget(getLevel());
@@ -332,6 +370,79 @@ public class ConstructionLevelJob extends TileLevelJob {
 					return ActiveJobResult.PERFORMING;
 				}
 
+				BlueprintObjectTarget objectTarget =
+						area.findFirstObjectTarget(getLevel());
+
+				if (objectTarget != null) {
+					GameObject object = ObjectRegistry.getObject(objectTarget.objectID);
+
+					if (object == null) {
+						nextActionTime = currentTime + actionDelay;
+						return ActiveJobResult.PERFORMING;
+					}
+
+					String placeError = object.canPlace(
+							getLevel(),
+							0,
+							objectTarget.tileX,
+							objectTarget.tileY,
+							objectTarget.rotation,
+							true,
+							false
+					);
+
+					if (placeError != null) {
+						nextActionTime = currentTime + actionDelay;
+						return ActiveJobResult.PERFORMING;
+					}
+
+					BuilderHumanMob materialBuilder =
+							area.consumeBuilderMaterial(
+									getLevel(),
+									objectTarget.objectID
+							);
+
+					if (materialBuilder != null) {
+						performObjectPlaceAction(getLevel(), objectTarget);
+
+						nextActionTime = currentTime + actionDelay;
+
+						Logging.logMessage(
+								"Builder "
+										+ worker.getMobWorker().getUniqueID()
+										+ " placed object "
+										+ objectTarget.objectID
+										+ " at "
+										+ objectTarget.tileX
+										+ ", "
+										+ objectTarget.tileY
+										+ " using material from Builder "
+										+ materialBuilder.getUniqueID()
+						);
+
+						return ActiveJobResult.PERFORMING;
+					}
+
+					if (area.getAllocatedMaterialAmount(objectTarget.objectID) > 0) {
+						nextActionTime = currentTime + actionDelay;
+						return ActiveJobResult.PERFORMING;
+					}
+
+					if (queueRefillJobs(worker, priority, area, sequence)) {
+						return ActiveJobResult.FINISHED;
+					}
+
+					nextActionTime = currentTime + actionDelay;
+					return ActiveJobResult.PERFORMING;
+				}
+
+				beginBlueprintCompletion(getLevel(), area);
+
+				if (queueCompletionCleanupJobs(worker, priority, area, sequence)) {
+					return ActiveJobResult.FINISHED;
+				}
+
+				nextActionTime = currentTime + actionDelay;
 				return ActiveJobResult.PERFORMING;
 			}
 		};
@@ -476,6 +587,17 @@ public class ConstructionLevelJob extends TileLevelJob {
 			);
 		}
 
+		level.getServer().network.sendToClientsWithTile(
+				new PacketBuilderTilePlaceSound(
+						tile.getID(),
+						target.tileX,
+						target.tileY
+				),
+				level,
+				target.tileX,
+				target.tileY
+		);
+
 		level.getLevelTile(target.tileX, target.tileY).checkAround();
 
 		for (Integer layerID : ObjectLayerRegistry.getLayerIDs()) {
@@ -487,6 +609,64 @@ public class ConstructionLevelJob extends TileLevelJob {
 		}
 
 		level.getLevelObject(target.tileX, target.tileY).checkAround();
+	}
+
+	private void performObjectPlaceAction(Level level, BlueprintObjectTarget target) {
+		GameObject object = ObjectRegistry.getObject(target.objectID);
+		int layerID = 0;
+
+		object.placeObject(
+				level,
+				layerID,
+				target.tileX,
+				target.tileY,
+				target.rotation,
+				true
+		);
+
+		if (level.isServer()) {
+			level.onObjectPlaced(
+					object,
+					layerID,
+					target.tileX,
+					target.tileY,
+					null
+			);
+
+			level.getServer().network.sendToClientsWithTile(
+					new PacketPlaceObject(
+							level,
+							null,
+							layerID,
+							target.tileX,
+							target.tileY,
+							object.getID(),
+							target.rotation,
+							true,
+							false
+					),
+					level,
+					target.tileX,
+					target.tileY
+			);
+		}
+
+		level.getServer().network.sendToClientsWithTile(
+				new PacketBuilderObjectPlaceSound(
+						object.getID(),
+						target.tileX,
+						target.tileY
+				),
+				level,
+				target.tileX,
+				target.tileY
+		);
+
+		level.getTile(target.tileX, target.tileY)
+				.checkAround(level, target.tileX, target.tileY);
+
+		level.getObject(target.tileX, target.tileY)
+				.checkAround(level, target.tileX, target.tileY);
 	}
 
 	private void performClearAction(
@@ -688,15 +868,178 @@ public class ConstructionLevelJob extends TileLevelJob {
 			return;
 		}
 
-		String message = Localization.translate(
-				"jobs",
-				translationKey,
-				replacementKey,
-				replacementValue
-		);
+		String message =
+				GameColor.RED.getColorCode()
+						+ Localization.translate(
+						"jobs",
+						translationKey,
+						replacementKey,
+						replacementValue
+				);
 
 		settlement.networkData.streamTeamMembers().forEach(
 				client -> client.sendChatMessage(message)
+		);
+	}
+
+	private static void syncBlueprintAreas(Level level) {
+		if (!level.isServer()) {
+			return;
+		}
+
+		BlueprintAreaManager manager = BlueprintAreaManager.get(level);
+
+		level.getServer().network.sendToClientsAtEntireLevel(
+				new PacketSyncBlueprintAreas(manager),
+				level
+		);
+	}
+
+	private void beginBlueprintCompletion(Level level, BlueprintArea area) {
+		if (area.isConstructionComplete()) {
+			return;
+		}
+
+		area.setConstructionComplete(true);
+		area.setMaterialsBlocked(false);
+		area.clearConstructionBlockedReason();
+
+		syncBlueprintAreas(level);
+
+		Logging.logMessage(
+				"Blueprint "
+						+ area.getUniqueID()
+						+ " construction completed; waiting for Builders to return surplus materials"
+		);
+	}
+
+	private boolean queueCompletionCleanupJobs(
+			EntityJobWorker worker,
+			JobTypeHandler.TypePriority priority,
+			BlueprintArea area,
+			LinkedListJobSequence sequence
+	) {
+		ServerSettlementData settlement = SettlementsWorldData
+				.getSettlementsData(getLevel().getServer())
+				.getServerData(area.getSettlementUniqueID());
+
+		if (settlement == null) {
+			Logging.logMessage(
+					"Could not clean up completed blueprint "
+							+ area.getUniqueID()
+							+ " because settlement "
+							+ area.getSettlementUniqueID()
+							+ " could not be found"
+			);
+
+			return false;
+		}
+
+		List<ActiveJob> dumpJobs = new ArrayList<>();
+
+		if (!addCurrentInventoryDropOffJobs(worker, priority, dumpJobs)) {
+			sendConstructionMessage(
+					area,
+					settlement,
+					"constructionnostoragespace"
+			);
+
+			return false;
+		}
+
+		area.clearConstructionBlockedReason();
+
+		sequence.addAll(dumpJobs);
+		sequence.add(getCompletionCleanupActiveJob(worker, priority));
+
+		return true;
+	}
+
+	private ActiveJob getCompletionCleanupActiveJob(
+			EntityJobWorker worker,
+			JobTypeHandler.TypePriority priority
+	) {
+		return new SimplePerformActiveJob(worker, priority) {
+			@Override
+			public ActiveJobResult perform() {
+				BlueprintArea area = BlueprintAreaManager
+						.get(getLevel())
+						.getArea(blueprintAreaUniqueID);
+
+				if (area == null) {
+					return ActiveJobResult.FINISHED;
+				}
+
+				int builderUniqueID = worker.getMobWorker().getUniqueID();
+
+				area.releaseBuilder(builderUniqueID);
+
+				Logging.logMessage(
+						"Builder "
+								+ builderUniqueID
+								+ " finished surplus material cleanup for blueprint "
+								+ blueprintAreaUniqueID
+				);
+
+				if (!area.hasAssignedBuilders()) {
+					finishBlueprintCleanup(getLevel(), area);
+				}
+
+				return ActiveJobResult.FINISHED;
+			}
+
+			@Override
+			public void onCancelled(boolean becauseOfInvalid, boolean isCurrent, boolean isMovingTo) {
+				super.onCancelled(becauseOfInvalid, isCurrent, isMovingTo);
+
+				BlueprintArea area = BlueprintAreaManager
+						.get(getLevel())
+						.getArea(blueprintAreaUniqueID);
+
+				if (area == null) {
+					return;
+				}
+
+				int builderUniqueID = worker.getMobWorker().getUniqueID();
+
+				if (!worker.getWorkInventory().isEmpty()) {
+					Logging.logMessage(
+							"Builder "
+									+ builderUniqueID
+									+ " interrupted during completed blueprint cleanup and remains assigned"
+					);
+
+					return;
+				}
+
+				area.releaseBuilder(builderUniqueID);
+
+				Logging.logMessage(
+						"Builder "
+								+ builderUniqueID
+								+ " left completed blueprint cleanup "
+								+ blueprintAreaUniqueID
+				);
+
+				if (!area.hasAssignedBuilders()) {
+					finishBlueprintCleanup(getLevel(), area);
+				}
+			}
+		};
+	}
+
+	private void finishBlueprintCleanup(Level level, BlueprintArea area) {
+		String uniqueID = area.getUniqueID();
+
+		BlueprintAreaManager manager = BlueprintAreaManager.get(level);
+		manager.removeArea(uniqueID);
+
+		syncBlueprintAreas(level);
+
+		Logging.logMessage(
+				"Blueprint "
+						+ uniqueID
+						+ " fully completed and removed after Builder material cleanup"
 		);
 	}
 
@@ -763,6 +1106,28 @@ public class ConstructionLevelJob extends TileLevelJob {
 			return null;
 		}
 
+		if (area.isConstructionComplete()) {
+			if (!area.isBuilderAssigned(worker.getUniqueID())) {
+				return null;
+			}
+
+			LinkedListJobSequence sequence = new LinkedListJobSequence(
+					new LocalMessage("activities", "construction"),
+					false
+			);
+
+			if (!job.queueCompletionCleanupJobs(
+					worker,
+					foundJob.priority,
+					area,
+					sequence
+			)) {
+				return null;
+			}
+
+			return sequence;
+		}
+
 		Map<String, Integer> missing = getMissingProjectMaterials(settlement, area, job.getLevel(), worker);
 
 		if (!missing.isEmpty()) {
@@ -809,15 +1174,36 @@ public class ConstructionLevelJob extends TileLevelJob {
 		);
 
 		int builderUniqueID = worker.getUniqueID();
+
+		if (area.isBuilderAssigned(builderUniqueID)) {
+			Logging.logMessage(
+					"Builder "
+							+ builderUniqueID
+							+ " resumed blueprint "
+							+ area.getUniqueID()
+							+ " after load"
+			);
+
+			LinkedListJobSequence sequence = new LinkedListJobSequence(
+					new LocalMessage("activities", "construction"),
+					false
+			);
+
+			sequence.add(job.getActiveJob(worker, foundJob.priority, sequence));
+
+			return sequence;
+		}
+
 		clearPreviousBuilderAssignment(job.getLevel(), builderUniqueID);
 
 		List<ActiveJob> dumpJobs = new ArrayList<>();
 
 		if (!addCurrentInventoryDropOffJobs(worker, foundJob.priority, dumpJobs)) {
-			sendConstructionMessage(
-					area,
-					settlement,
-					"constructionnostoragespace"
+			Logging.logMessage(
+					"Builder "
+							+ builderUniqueID
+							+ " could not currently find enough usable settlement storage "
+							+ "for carried items; construction job will retry"
 			);
 
 			return null;

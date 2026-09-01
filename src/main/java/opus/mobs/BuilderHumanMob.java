@@ -30,6 +30,13 @@ public class BuilderHumanMob extends HumanShop {
         this.shop.addSellingItem("blueprintItem", new SellingShopItem()).setStaticPriceBasedOnHappiness(100, 200, 20);
     }
 
+    @Override
+    public void init() {
+        super.init();
+
+        this.jobTypeHandler.globalCooldown = 0L;
+    }
+
     public LootTable getLootTable() {
         return super.getLootTable();
     }

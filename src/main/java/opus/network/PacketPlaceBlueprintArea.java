@@ -110,6 +110,10 @@ public class PacketPlaceBlueprintArea extends Packet {
 		);
 
 		for (BlueprintArea area : manager.getAreas()) {
+			if (area.isConstructionComplete()) {
+				continue;
+			}
+
 			if (bounds.intersects(area.getTileBounds())) {
 				return true;
 			}

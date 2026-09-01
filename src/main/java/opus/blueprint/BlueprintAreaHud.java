@@ -104,6 +104,10 @@ public final class BlueprintAreaHud {
 
 		// Areas first, so ghosts render on top.
 		for (BlueprintArea area : manager.getAreas()) {
+			if (area.isConstructionComplete()) {
+				continue;
+			}
+
 			drawAreaBackground(
 					camera,
 					area
@@ -111,6 +115,10 @@ public final class BlueprintAreaHud {
 		}
 
 		for (BlueprintArea area : manager.getAreas()) {
+			if (area.isConstructionComplete()) {
+				continue;
+			}
+
 			drawAreaGhosts(
 					level,
 					camera,

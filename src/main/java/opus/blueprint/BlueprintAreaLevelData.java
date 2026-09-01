@@ -2,11 +2,17 @@ package opus.blueprint;
 
 import necesse.engine.save.LoadData;
 import necesse.engine.save.SaveData;
+import necesse.entity.manager.RegionLoadedListenerEntityComponent;
 import necesse.level.maps.Level;
 import necesse.level.maps.levelData.LevelData;
+import necesse.level.maps.levelData.jobs.TileLevelJob;
+import necesse.level.maps.regionSystem.Region;
+import opus.jobs.ConstructionLevelJob;
 import opus.logging.Logging;
 
-public class BlueprintAreaLevelData extends LevelData {
+import java.awt.*;
+
+public class BlueprintAreaLevelData extends LevelData implements RegionLoadedListenerEntityComponent {
     public static final String managerKey =
             "opusblueprintareas";
 
@@ -48,6 +54,45 @@ public class BlueprintAreaLevelData extends LevelData {
         );
 
         return data;
+    }
+
+    @Override
+    public void onRegionLoaded(Region region) {
+        if (!isServer()) {
+            return;
+        }
+
+        for (BlueprintArea area : manager.getAreas()) {
+            if (area.isConstructionComplete()) {
+                continue;
+            }
+
+            for (Point workTile : area.getOutsideBorderTiles()) {
+                if (workTile.x < region.tileXOffset
+                        || workTile.y < region.tileYOffset
+                        || workTile.x >= region.tileXOffset + region.tileWidth
+                        || workTile.y >= region.tileYOffset + region.tileHeight) {
+                    continue;
+                }
+
+                if (level.isSolidTile(workTile.x, workTile.y)) {
+                    continue;
+                }
+
+                ConstructionLevelJob job = new ConstructionLevelJob(
+                        workTile.x,
+                        workTile.y,
+                        area.getUniqueID()
+                );
+
+                if (level.jobsLayer.addJob(job) != null) {
+                    Logging.logMessage(
+                            "Recreated ConstructionLevelJob after region load at "
+                                    + workTile.x + ", " + workTile.y
+                    );
+                }
+            }
+        }
     }
 
     @Override
