@@ -318,11 +318,6 @@ public class ConstructionLevelJob extends TileLevelJob {
 						return ActiveJobResult.PERFORMING;
 					}
 
-					if (area.getAllocatedMaterialAmount(tileTarget.tileID) > 0) {
-						nextActionTime = currentTime + actionDelay;
-						return ActiveJobResult.PERFORMING;
-					}
-
 					if (queueRefillJobs(worker, priority, area, sequence)) {
 						Logging.logMessage(
 								"Builder "
@@ -388,11 +383,6 @@ public class ConstructionLevelJob extends TileLevelJob {
 										+ materialBuilder.getUniqueID()
 						);
 
-						return ActiveJobResult.PERFORMING;
-					}
-
-					if (area.getAllocatedMaterialAmount(objectTarget.objectID) > 0) {
-						nextActionTime = currentTime + actionDelay;
 						return ActiveJobResult.PERFORMING;
 					}
 
@@ -1086,6 +1076,26 @@ public class ConstructionLevelJob extends TileLevelJob {
 		}
 
 		Map<String, Integer> missing = getMissingProjectMaterials(settlement, area, job.getLevel(), worker);
+
+		if (area.findFirstClearTarget(job.getLevel()) == null
+				&& area.findFirstTileTarget(job.getLevel()) == null
+				&& area.findFirstObjectTarget(job.getLevel()) == null) {
+			job.beginBlueprintCompletion(job.getLevel(), area);
+;
+			String message =
+					GameColor.GREEN.getColorCode()
+							+ Localization.translate("jobs", "constructionalreadycomplete");
+
+			settlement.networkData.streamTeamMembers().forEach(
+					client -> client.sendChatMessage(message)
+			);
+
+			if (!area.hasAssignedBuilders()) {
+				job.finishBlueprintCleanup(job.getLevel(), area);
+			}
+
+			return null;
+		}
 
 		if (!missing.isEmpty()) {
 			sendMissingMaterialsMessage(area, settlement, missing);

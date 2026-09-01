@@ -118,5 +118,6 @@ public class BlueprintAreaManager {
 				area
 			);
 		}
+		areas.clear();
 	}
 }

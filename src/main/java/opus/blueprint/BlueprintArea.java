@@ -432,15 +432,6 @@ public class BlueprintArea {
 		return null;
 	}
 
-	public int getAllocatedMaterialAmount(String itemID) {
-		int amount = 0;
-
-		for (Map<String, Integer> allocation : builderMaterialAllocations.values()) {
-			amount += allocation.getOrDefault(itemID, 0);
-		}
-
-		return amount;
-	}
 
 	private boolean isObjectComplete(Level level, BlueprintElement element, int worldX, int worldY) {
 		if (element == null || element.getObjectID() == null) {
