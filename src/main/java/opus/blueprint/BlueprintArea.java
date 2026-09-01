@@ -33,6 +33,7 @@ public class BlueprintArea {
 
 	private boolean constructionStarted;
 	private boolean materialsBlocked;
+	private String constructionBlockedReason;
 
 	private final Map<Integer, Map<String, Integer>> builderMaterialAllocations = new HashMap<>();
 
@@ -177,6 +178,28 @@ public class BlueprintArea {
 		return tiles;
 	}
 
+	public BlueprintTileTarget findFirstTileTarget(Level level) {
+		for (int y = 0; y < height; y++) {
+			for (int x = 0; x < width; x++) {
+				BlueprintElement element = blueprintData.getElementAt(x, y);
+
+				if (element == null || element.getTileID() == null) {
+					continue;
+				}
+
+				int worldX = originX + x;
+				int worldY = originY + y;
+				GameTile wantedTile = TileRegistry.getTile(element.getTileID());
+
+				if (level.getTileID(worldX, worldY) != wantedTile.getID()) {
+					return new BlueprintTileTarget(worldX, worldY, element.getTileID());
+				}
+			}
+		}
+
+		return null;
+	}
+
 	public BlueprintClearTarget findFirstClearTarget(Level level) {
 		for (int y = 0; y < height; y++) {
 			for (int x = 0; x < width; x++) {
@@ -231,6 +254,19 @@ public class BlueprintArea {
 		return materialsBlocked;
 	}
 
+	public boolean setConstructionBlockedReason(String reason) {
+		if (Objects.equals(constructionBlockedReason, reason)) {
+			return false;
+		}
+
+		constructionBlockedReason = reason;
+		return true;
+	}
+
+	public void clearConstructionBlockedReason() {
+		constructionBlockedReason = null;
+	}
+
 	public void setMaterialsBlocked(boolean materialsBlocked) {
 		this.materialsBlocked = materialsBlocked;
 	}
@@ -282,20 +318,40 @@ public class BlueprintArea {
 	}
 
 
-	public BuilderMaterialSource findBuilderMaterial(Level level, String itemID) {
+	public BuilderHumanMob consumeBuilderMaterial(Level level, String itemID) {
 		for (BuilderHumanMob builder : getAssignedBuilders(level)) {
 			ListIterator<InventoryItem> iterator = builder.getWorkInventory().listIterator();
 
 			while (iterator.hasNext()) {
 				InventoryItem item = iterator.next();
 
-				if (item.item.getStringID().equals(itemID) && item.getAmount() > 0) {
-					return new BuilderMaterialSource(builder, item);
+				if (!item.item.getStringID().equals(itemID) || item.getAmount() <= 0) {
+					continue;
 				}
+
+				item.setAmount(item.getAmount() - 1);
+
+				if (item.getAmount() <= 0) {
+					iterator.remove();
+				}
+
+				builder.getWorkInventory().markDirty();
+				consumeBuilderMaterialAllocation(builder.getUniqueID(), itemID, 1);
+				return builder;
 			}
 		}
 
 		return null;
+	}
+
+	public int getAllocatedMaterialAmount(String itemID) {
+		int amount = 0;
+
+		for (Map<String, Integer> allocation : builderMaterialAllocations.values()) {
+			amount += allocation.getOrDefault(itemID, 0);
+		}
+
+		return amount;
 	}
 
 	private boolean isObjectComplete(Level level, BlueprintElement element, int worldX, int worldY) {
