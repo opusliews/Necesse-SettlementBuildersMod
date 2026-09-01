@@ -7,6 +7,7 @@ import necesse.engine.localization.message.GameMessage;
 import necesse.engine.localization.message.StaticMessage;
 import necesse.engine.network.client.Client;
 import necesse.engine.registries.ItemRegistry;
+import necesse.engine.registries.ObjectRegistry;
 import necesse.engine.state.MainGame;
 import necesse.engine.window.GameWindow;
 import necesse.gfx.forms.Form;
@@ -20,15 +21,16 @@ import necesse.gfx.ui.ButtonColor;
 import necesse.level.gameObject.GameObject;
 import necesse.level.gameTile.GameTile;
 import necesse.level.maps.Level;
+import necesse.level.maps.multiTile.MultiTile;
 import opus.logging.Logging;
 import opus.tools.BlueprintData;
 import opus.tools.BlueprintElement;
 import opus.tools.BlueprintSelectionTool;
-import java.util.function.BiConsumer;
 
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiConsumer;
 
 import static opus.tools.BlueprintElement.isBlueprintObject;
 import static opus.tools.BlueprintElement.isBlueprintTile;
@@ -156,7 +158,7 @@ public class NewBlueprintForm extends Form {
 
 					BlueprintElement be = new BlueprintElement(relativeX, relativeY);
 
-					if (isBlueprintObject(object) && !excludedObjectIDs.contains(object.getStringID())) {
+					if (canIncludeBlueprintObject(level, selection, excludedObjectIDs, x, y, object)) {
 						be.setObjectID(object.getStringID());
 						be.setRotation(level.getObjectRotation(x, y));
 
@@ -206,6 +208,49 @@ public class NewBlueprintForm extends Form {
 		});
 
 		this.setPosition(10, 30);
+	}
+
+	private boolean canIncludeBlueprintObject(
+			Level level,
+			Rectangle selection,
+			List<String> excludedObjectIDs,
+			int tileX,
+			int tileY,
+			GameObject object
+	) {
+		if (!isBlueprintObject(object) || excludedObjectIDs.contains(object.getStringID())) {
+			return false;
+		}
+
+		if (!object.isMultiTile()) {
+			return true;
+		}
+
+		int rotation = level.getObjectRotation(tileX, tileY);
+		MultiTile multiTile = object.getMultiTile(rotation);
+
+		for (Object valueObject : multiTile.getIDs(tileX, tileY)) {
+			MultiTile.CoordinateValue value = (MultiTile.CoordinateValue)valueObject;
+			int expectedObjectID = (Integer)value.value;
+
+			if (!selection.contains(value.tileX, value.tileY)) {
+				return false;
+			}
+
+			GameObject expectedObject = ObjectRegistry.getObject(expectedObjectID);
+
+			if (expectedObject == null || excludedObjectIDs.contains(expectedObject.getStringID())) {
+				return false;
+			}
+
+			if (level.getObjectID(value.tileX, value.tileY) != expectedObjectID
+					|| level.getObjectRotation(value.tileX, value.tileY) != rotation
+			) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	private boolean isObtainableBlueprintTile(GameTile tile) {

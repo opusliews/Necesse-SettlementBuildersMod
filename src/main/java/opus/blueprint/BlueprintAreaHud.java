@@ -224,7 +224,7 @@ public final class BlueprintAreaHud {
 							element.getObjectID()
 					);
 
-			if (object != null) {
+			if (object != null && object.isMultiTileMaster()) {
 				if (object instanceof WallObject) {
 					drawWallPreview(
 							(WallObject)object,

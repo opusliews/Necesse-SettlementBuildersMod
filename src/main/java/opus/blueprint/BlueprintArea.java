@@ -1,5 +1,6 @@
 package opus.blueprint;
 
+import necesse.engine.registries.ObjectRegistry;
 import necesse.engine.registries.TileRegistry;
 import necesse.engine.save.LoadData;
 import necesse.engine.save.SaveData;
@@ -8,6 +9,7 @@ import necesse.level.gameObject.AirObject;
 import necesse.level.gameObject.GameObject;
 import necesse.level.gameTile.GameTile;
 import necesse.level.maps.Level;
+import necesse.level.maps.multiTile.MultiTile;
 import opus.mobs.BuilderHumanMob;
 import opus.tools.BlueprintData;
 import opus.tools.BlueprintElement;
@@ -296,6 +298,46 @@ public class BlueprintArea {
 		return null;
 	}
 
+	private boolean isObjectComplete(Level level, BlueprintElement element, int worldX, int worldY) {
+		if (element == null || element.getObjectID() == null) {
+			return true;
+		}
+
+		GameObject wantedObject = ObjectRegistry.getObject(element.getObjectID());
+
+		if (wantedObject == null
+				|| level.getObjectID(worldX, worldY) != wantedObject.getID()
+				|| level.getObjectRotation(worldX, worldY) != element.getRotation()
+		) {
+			return false;
+		}
+
+		if (!wantedObject.isMultiTileMaster()) {
+			return true;
+		}
+
+		for (Object valueObject : wantedObject.getMultiTile(element.getRotation()).getIDs(worldX, worldY)) {
+			MultiTile.CoordinateValue value = (MultiTile.CoordinateValue)valueObject;
+
+			if (level.getObjectID(value.tileX, value.tileY) != (Integer)value.value
+					|| level.getObjectRotation(value.tileX, value.tileY) != element.getRotation()
+			) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	public boolean isObjectPlacementElement(BlueprintElement element) {
+		if (element == null || element.getObjectID() == null) {
+			return false;
+		}
+
+		GameObject object = ObjectRegistry.getObject(element.getObjectID());
+		return object != null && object.isMultiTileMaster();
+	}
+
 	public Map<String, Integer> getRequiredMaterials(Level level) {
 		Map<String, Integer> required = new LinkedHashMap<>();
 
@@ -324,13 +366,12 @@ public class BlueprintArea {
 				String wantedObjectID = element.getObjectID();
 
 				if (wantedObjectID != null) {
-					GameObject currentObject = level.getObject(worldX, worldY);
+					GameObject wantedObject = ObjectRegistry.getObject(wantedObjectID);
 
-					boolean correctObject =
-							currentObject.getStringID().equals(wantedObjectID)
-									&& level.getObjectRotation(worldX, worldY) == element.getRotation();
-
-					if (!correctObject) {
+					if (wantedObject != null
+							&& wantedObject.isMultiTileMaster()
+							&& !isObjectComplete(level, element, worldX, worldY)
+					) {
 						required.merge(wantedObjectID, 1, Integer::sum);
 					}
 				}
@@ -395,20 +436,14 @@ public class BlueprintArea {
 			for (int x = 0; x < width; x++) {
 				BlueprintElement element = blueprintData.getElementAt(x, y);
 
-				if (element == null || element.getObjectID() == null) {
+				if (!isObjectPlacementElement(element)) {
 					continue;
 				}
 
 				int worldX = originX + x;
 				int worldY = originY + y;
 
-				GameObject currentObject = level.getObject(worldX, worldY);
-
-				boolean correct =
-						currentObject.getStringID().equals(element.getObjectID())
-								&& level.getObjectRotation(worldX, worldY) == element.getRotation();
-
-				if (!correct) {
+				if (!isObjectComplete(level, element, worldX, worldY)) {
 					materials.add(element.getObjectID());
 				}
 			}

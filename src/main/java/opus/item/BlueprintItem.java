@@ -5,14 +5,12 @@ import necesse.engine.Settings;
 import necesse.engine.gameLoop.tickManager.TickManager;
 import necesse.engine.localization.Localization;
 import necesse.engine.network.gameNetworkData.GNDItemMap;
-import necesse.engine.network.server.Server;
 import necesse.engine.registries.ObjectRegistry;
 import necesse.engine.registries.TileRegistry;
 import necesse.engine.state.MainGame;
 import necesse.engine.util.GameBlackboard;
 import necesse.engine.util.GameMath;
 import necesse.engine.window.GameWindow;
-import necesse.engine.world.worldData.SettlementsWorldData;
 import necesse.entity.mobs.PlayerInventoryItemAttackSlot;
 import necesse.entity.mobs.PlayerMob;
 import necesse.entity.mobs.itemAttacker.ItemAttackSlot;
@@ -31,7 +29,6 @@ import necesse.level.gameObject.GameObject;
 import necesse.level.gameObject.WallObject;
 import necesse.level.gameTile.GameTile;
 import necesse.level.maps.Level;
-import necesse.level.maps.levelData.settlementData.ServerSettlementData;
 import opus.forms.NewBlueprintForm;
 import opus.logging.Logging;
 import opus.network.PacketBlueprintUpdate;
@@ -303,7 +300,7 @@ public class BlueprintItem extends Item implements ItemInteractAction, Placeable
 						element.getObjectID()
 				);
 
-				if (object != null) {
+				if (object != null && object.isMultiTileMaster()) {
 					if (object instanceof WallObject) {
 						drawWallPreview(
 								(WallObject)object,
