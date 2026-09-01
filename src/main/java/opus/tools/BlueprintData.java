@@ -13,11 +13,26 @@ public class BlueprintData {
 	private final int height;
 
 	private final List<BlueprintElement> elements;
+	private transient BlueprintElement[][] elementMap;
 
 	public BlueprintData(int width, int height, List<BlueprintElement> elements) {
 		this.width = width;
 		this.height = height;
 		this.elements = new ArrayList<>(elements);
+		rebuildElementMap();
+	}
+
+	private void rebuildElementMap() {
+		elementMap = new BlueprintElement[width][height];
+
+		for (BlueprintElement element : elements) {
+			int x = element.getX();
+			int y = element.getY();
+
+			if (x >= 0 && y >= 0 && x < width && y < height) {
+				elementMap[x][y] = element;
+			}
+		}
 	}
 
 	public int getWidth() {
@@ -92,6 +107,14 @@ public class BlueprintData {
 
 		// Rotation switches Width and Height
 		return new BlueprintData(height,width,rotatedElements);
+	}
+
+	public BlueprintElement getElementAt(int x, int y) {
+		if (x < 0 || y < 0 || x >= width || y >= height) {
+			return null;
+		}
+
+		return elementMap[x][y];
 	}
 
 	public String toJson() {

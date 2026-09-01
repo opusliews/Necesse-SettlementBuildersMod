@@ -8,10 +8,12 @@ import necesse.engine.network.PacketWriter;
 import necesse.engine.network.packet.PacketStatusMessage;
 import necesse.engine.network.server.Server;
 import necesse.engine.network.server.ServerClient;
+import necesse.engine.registries.ObjectLayerRegistry;
 import necesse.engine.registries.ObjectRegistry;
 import necesse.engine.world.worldData.SettlementsWorldData;
 import necesse.inventory.InventoryItem;
 import necesse.inventory.PlayerInventorySlot;
+import necesse.inventory.item.toolItem.ToolType;
 import necesse.level.gameObject.GameObject;
 import necesse.level.maps.Level;
 import necesse.level.maps.levelData.settlementData.ServerSettlementData;
@@ -167,6 +169,34 @@ public class PacketPlaceBlueprintArea extends Packet {
 		return false;
 	}
 
+	private boolean hasUnbreakableObject(Level level, int originX, int originY, BlueprintData blueprintData) {
+		for (int y = 0; y < blueprintData.getHeight(); y++) {
+			for (int x = 0; x < blueprintData.getWidth(); x++) {
+				int tileX = originX + x;
+				int tileY = originY + y;
+
+				for (int layerID : ObjectLayerRegistry.getLayerIDs()) {
+					GameObject object = level.getObject(layerID, tileX, tileY);
+
+					if (object.toolType == ToolType.UNBREAKABLE) {
+						return true;
+					}
+				}
+			}
+		}
+
+		return false;
+	}
+
+	private void ClientErrorMessage(ServerClient client, String category, String translationKey, int seconds) {
+		client.sendPacket(
+				new PacketStatusMessage(
+						Localization.translate(category,translationKey), Color.RED,seconds
+				)
+		);
+	}
+
+
 	@Override
 	public void processServer(
 			NetworkPacket packet,
@@ -223,63 +253,30 @@ public class PacketPlaceBlueprintArea extends Packet {
 				);
 
 		if (settlement == null) {
-			client.sendPacket(
-					new PacketStatusMessage(
-							Localization.translate(
-									"misc",
-									"blueprintplaceoutsidesettlement1"
-							),
-							Color.RED,
-							5
-					)
-			);
-
+			ClientErrorMessage(client, "misc", "blueprintplaceoutsidesettlement1", 5);
 			return;
 		}
 
 		if (!settlement.networkData.isClientPartOf(client)) {
-			client.sendPacket(
-					new PacketStatusMessage(
-							Localization.translate(
-									"misc",
-									"blueprintplaceothersettlement"
-							),
-							Color.RED,
-							5
-					)
-			);
+			ClientErrorMessage(client, "misc", "blueprintplaceothersettlement", 5);
 
 			return;
 		}
 
 		if (!isEntirelyInsideSettlement(
 				settlement, originX, originY, blueprintData.getWidth(), blueprintData.getHeight())) {
-			client.sendPacket(
-					new PacketStatusMessage(
-							Localization.translate(
-									"misc",
-									"blueprintplaceoutsidesettlement2"
-							),
-							Color.RED,
-							5
-					)
-			);
+			ClientErrorMessage(client, "misc", "blueprintplaceoutsidesettlement2", 5);
+			return;
+		}
 
+		if (hasUnbreakableObject(
+				level, originX, originY,blueprintData)) {
+			ClientErrorMessage(client, "misc", "blueprintplaceunbreakable", 5);
 			return;
 		}
 
 		if (hasInvalidFloatingObjects(level, originX, originY, blueprintData)) {
-			client.sendPacket(
-					new PacketStatusMessage(
-							Localization.translate(
-									"misc",
-									"blueprintplacefluid"
-							),
-							Color.RED,
-							20
-					)
-			);
-
+			ClientErrorMessage(client, "misc", "blueprintplacefluid", 20);
 			return;
 		}
 
@@ -287,17 +284,7 @@ public class PacketPlaceBlueprintArea extends Packet {
 
 		if (overlapsExistingArea(
 				manager, originX, originY, blueprintData.getWidth(), blueprintData.getHeight())) {
-			client.sendPacket(
-					new PacketStatusMessage(
-							Localization.translate(
-									"misc",
-									"blueprintplaceoverlap"
-							),
-							Color.RED,
-							5
-					)
-			);
-
+			ClientErrorMessage(client, "misc", "blueprintplaceoverlap", 5);
 			return;
 		}
 

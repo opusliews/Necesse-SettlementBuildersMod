@@ -13,7 +13,6 @@ import opus.jobs.ConstructionLevelJob;
 import opus.logging.Logging;
 import opus.mobs.BuilderHumanMob;
 import opus.network.*;
-import opus.patches.MainGamePatch;
 import opus.settler.BuilderSettler;
 
 @ModEntry

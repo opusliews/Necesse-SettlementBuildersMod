@@ -1,5 +1,6 @@
 package opus.tools;
 
+import necesse.inventory.item.toolItem.ToolType;
 import necesse.level.gameObject.*;
 import necesse.level.gameTile.*;
 
@@ -63,18 +64,10 @@ public class BlueprintElement {
 		if (gameObject == null) {
 			return false;
 		}
-
 		if (gameObject instanceof AirObject) {
 			return false;
 		}
-
-		if (gameObject instanceof InvisibleTriggerObject) {
-			return false;
-		}
-
-		if (gameObject instanceof DungeonEntranceObject
-				|| gameObject instanceof DungeonExitObject
-				|| gameObject instanceof TrialEntranceObject) {
+		if (gameObject.toolType == ToolType.UNBREAKABLE) {
 			return false;
 		}
 
@@ -85,16 +78,13 @@ public class BlueprintElement {
 		if (gameTile == null) {
 			return false;
 		}
-
 		if (gameTile instanceof EmptyTile) {
 			return false;
 		}
-
 		// Water/lava/etc. are not normal tile placement.
 		if (gameTile instanceof LiquidTile) {
 			return false;
 		}
-
 		// What the fuck even is this
 		if (gameTile instanceof ChromaKeyTile) {
 			return false;

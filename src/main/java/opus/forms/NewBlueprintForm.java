@@ -6,6 +6,7 @@ import necesse.engine.localization.Localization;
 import necesse.engine.localization.message.GameMessage;
 import necesse.engine.localization.message.StaticMessage;
 import necesse.engine.network.client.Client;
+import necesse.engine.registries.ItemRegistry;
 import necesse.engine.state.MainGame;
 import necesse.engine.window.GameWindow;
 import necesse.gfx.forms.Form;
@@ -161,7 +162,11 @@ public class NewBlueprintForm extends Form {
 
 						Logging.logMessage("Object found: " + object.getDisplayName());
 					}
-					if (isBlueprintTile(tile) && !excludedTileIDs.contains(tile.getStringID())) {
+					
+					if (isBlueprintTile(tile)
+							&& isObtainableBlueprintTile(tile)
+							&& !excludedTileIDs.contains(tile.getStringID())
+					) {
 						be.setTileID(tile.getStringID());
 						Logging.logMessage("Tile found: " + tile.getDisplayName());
 					}
@@ -201,6 +206,11 @@ public class NewBlueprintForm extends Form {
 		});
 
 		this.setPosition(10, 30);
+	}
+
+	private boolean isObtainableBlueprintTile(GameTile tile) {
+		int itemID = ItemRegistry.getItemID(tile.getStringID());
+		return ItemRegistry.isObtainable(itemID);
 	}
 
 	private void hideInventoryUI() {

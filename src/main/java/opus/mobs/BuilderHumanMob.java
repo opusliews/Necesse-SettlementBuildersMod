@@ -6,12 +6,15 @@ import necesse.engine.network.server.ServerClient;
 import necesse.engine.util.GameRandom;
 import necesse.entity.mobs.friendly.human.humanShop.HumanShop;
 import necesse.entity.mobs.friendly.human.humanShop.SellingShopItem;
+import necesse.entity.mobs.job.WorkInventory;
 import necesse.inventory.InventoryItem;
 import necesse.inventory.lootTable.LootTable;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.ListIterator;
+import java.util.stream.Stream;
 
 public class BuilderHumanMob extends HumanShop {
     public BuilderHumanMob() {
@@ -45,6 +48,8 @@ public class BuilderHumanMob extends HumanShop {
         return Collections.emptyList();
     }
 
+
+
     public List<InventoryItem> getRecruitItems(ServerClient client) {
         if (this.isTrapped()) {
             return Collections.emptyList();
@@ -56,5 +61,62 @@ public class BuilderHumanMob extends HumanShop {
                 return Collections.emptyList();
             }
         }
+    }
+
+    // Inventory overrides, to remove broker value limits to builder inventory
+    @Override
+    public WorkInventory getWorkInventory() {
+        WorkInventory parent = super.getWorkInventory();
+
+        return new WorkInventory() {
+            @Override
+            public ListIterator listIterator() {
+                return parent.listIterator();
+            }
+
+            @Override
+            public Iterable items() {
+                return parent.items();
+            }
+
+            @Override
+            public Stream stream() {
+                return parent.stream();
+            }
+
+            @Override
+            public void markDirty() {
+                parent.markDirty();
+            }
+
+            @Override
+            public void add(InventoryItem item) {
+                parent.add(item);
+            }
+
+            @Override
+            public int getCanAddAmount(InventoryItem item) {
+                if (getTotalItemStacks() > 4) {
+                    return 0;
+                }
+
+                return item.getAmount();
+            }
+
+            @Override
+            public boolean isFull() {
+                return getTotalItemStacks() > 4;
+            }
+
+            @Override
+            public int getTotalItemStacks() {
+                return parent.getTotalItemStacks();
+            }
+
+            @Override
+            public boolean isEmpty() {
+                return parent.isEmpty();
+            }
+        };
     }
 }
