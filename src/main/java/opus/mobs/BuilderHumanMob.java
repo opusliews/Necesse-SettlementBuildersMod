@@ -8,7 +8,6 @@ import necesse.entity.mobs.friendly.human.humanShop.HumanShop;
 import necesse.entity.mobs.friendly.human.humanShop.SellingShopItem;
 import necesse.entity.mobs.job.WorkInventory;
 import necesse.inventory.InventoryItem;
-import necesse.inventory.lootTable.LootTable;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -17,6 +16,8 @@ import java.util.ListIterator;
 import java.util.stream.Stream;
 
 public class BuilderHumanMob extends HumanShop {
+    public static final int maxWorkInventoryStacks = 5;
+
     public BuilderHumanMob() {
         super(500, 200, "builder");
         this.attackCooldown = 500;
@@ -37,26 +38,23 @@ public class BuilderHumanMob extends HumanShop {
         this.jobTypeHandler.globalCooldown = 0L;
     }
 
-    public LootTable getLootTable() {
-        return super.getLootTable();
-    }
-
+    @Override
     protected ArrayList<GameMessage> getMessages(ServerClient client) {
-        ArrayList<GameMessage> out = this.getLocalMessages("buildertalk", 7);
-
-        return out;
+        return this.getLocalMessages("buildertalk", 7);
     }
 
+    @Override
     public boolean canDoExpedition(SettlerExpedition expedition) {
         return false;
     }
 
+    @Override
     public List getPossibleExpeditions() {
         return Collections.emptyList();
     }
 
 
-
+    @Override
     public List<InventoryItem> getRecruitItems(ServerClient client) {
         if (this.isTrapped()) {
             return Collections.emptyList();
@@ -103,7 +101,7 @@ public class BuilderHumanMob extends HumanShop {
 
             @Override
             public int getCanAddAmount(InventoryItem item) {
-                if (getTotalItemStacks() > 4) {
+                if (getTotalItemStacks() >= maxWorkInventoryStacks) {
                     return 0;
                 }
 
@@ -112,7 +110,7 @@ public class BuilderHumanMob extends HumanShop {
 
             @Override
             public boolean isFull() {
-                return getTotalItemStacks() > 4;
+                return getTotalItemStacks() >= maxWorkInventoryStacks;
             }
 
             @Override

@@ -5,19 +5,15 @@ import necesse.engine.save.SaveData;
 import necesse.entity.manager.RegionLoadedListenerEntityComponent;
 import necesse.level.maps.Level;
 import necesse.level.maps.levelData.LevelData;
-import necesse.level.maps.levelData.jobs.TileLevelJob;
 import necesse.level.maps.regionSystem.Region;
 import opus.jobs.ConstructionLevelJob;
-import opus.logging.Logging;
 
 import java.awt.*;
 
 public class BlueprintAreaLevelData extends LevelData implements RegionLoadedListenerEntityComponent {
-    public static final String managerKey =
-            "opusblueprintareas";
+    public static final String managerKey = "opusblueprintareas";
 
-    private final BlueprintAreaManager manager =
-            new BlueprintAreaManager();
+    private final BlueprintAreaManager manager = new BlueprintAreaManager();
 
     public BlueprintAreaLevelData() {
     }
@@ -63,7 +59,7 @@ public class BlueprintAreaLevelData extends LevelData implements RegionLoadedLis
         }
 
         for (BlueprintArea area : manager.getAreas()) {
-            if (area.isConstructionComplete()) {
+            if (area.isConstructionComplete() && !area.hasAssignedBuilders()) {
                 continue;
             }
 
@@ -79,18 +75,11 @@ public class BlueprintAreaLevelData extends LevelData implements RegionLoadedLis
                     continue;
                 }
 
-                ConstructionLevelJob job = new ConstructionLevelJob(
+                level.jobsLayer.addJob(new ConstructionLevelJob(
                         workTile.x,
                         workTile.y,
                         area.getUniqueID()
-                );
-
-                if (level.jobsLayer.addJob(job) != null) {
-                    Logging.logMessage(
-                            "Recreated ConstructionLevelJob after region load at "
-                                    + workTile.x + ", " + workTile.y
-                    );
-                }
+                ));
             }
         }
     }
@@ -116,11 +105,5 @@ public class BlueprintAreaLevelData extends LevelData implements RegionLoadedLis
             manager.applyLoadData(areasSave);
         }
 
-        Logging.logMessage(
-                "Loaded BlueprintAreaLevelData:"
-                        + " client = " + isClient()
-                        + " server = " + isServer()
-                        + " areas = " + manager.size()
-        );
     }
 }

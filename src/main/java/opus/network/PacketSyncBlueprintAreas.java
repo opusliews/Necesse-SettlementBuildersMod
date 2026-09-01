@@ -8,7 +8,6 @@ import necesse.engine.network.client.Client;
 import necesse.engine.save.LoadData;
 import necesse.level.maps.Level;
 import opus.blueprint.BlueprintAreaManager;
-import opus.logging.Logging;
 
 public class PacketSyncBlueprintAreas extends Packet {
 	private final String saveData;
@@ -48,16 +47,9 @@ public class PacketSyncBlueprintAreas extends Packet {
 		BlueprintAreaManager manager =
 			BlueprintAreaManager.get(level);
 
-		manager.clear();
-
 		LoadData load =
 			new LoadData(saveData);
 
 		manager.applyLoadData(load);
-
-		Logging.logMessage(
-			"Synced blueprint areas to client:"
-				+ " areas=" + manager.size()
-		);
 	}
 }

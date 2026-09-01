@@ -21,7 +21,7 @@ import necesse.level.gameObject.GameObject;
 import necesse.level.gameTile.GameTile;
 import necesse.level.maps.Level;
 import necesse.level.maps.hudManager.HudDrawElement;
-import opus.logging.Logging;
+import org.lwjgl.glfw.GLFW;
 
 import java.awt.*;
 import java.util.ArrayList;
@@ -198,11 +198,11 @@ public class BlueprintSelectionTool implements GameTool {
 		return WindowManager
 				.getWindow()
 				.getInput()
-				.isKeyDown(341)
+				.isKeyDown(GLFW.GLFW_KEY_LEFT_CONTROL)
 				|| WindowManager
 				.getWindow()
 				.getInput()
-				.isKeyDown(345);
+				.isKeyDown(GLFW.GLFW_KEY_RIGHT_CONTROL);
 	}
 
 	private void toggleExcludedTile(int tileX, int tileY) {
@@ -317,7 +317,6 @@ public class BlueprintSelectionTool implements GameTool {
 				 */
 				excludedTiles.clear();
 
-				onSelectionChanged(selection);
 
 				event.use();
 				return true;
@@ -327,15 +326,6 @@ public class BlueprintSelectionTool implements GameTool {
 		return false;
 	}
 
-	protected void onSelectionChanged(Rectangle selection) {
-		Logging.logMessage(
-				"Blueprint selection: "
-						+ selection.x + ", "
-						+ selection.y + " - "
-						+ selection.width + "x"
-						+ selection.height
-		);
-	}
 
 	public Rectangle getSelection() {
 		return selection == null
@@ -343,21 +333,6 @@ public class BlueprintSelectionTool implements GameTool {
 				: new Rectangle(selection);
 	}
 
-	public Set<Point> getExcludedTiles() {
-		Set<Point> result = new HashSet<>();
-
-		for (Point tile : excludedTiles) {
-			result.add(new Point(tile));
-		}
-
-		return result;
-	}
-
-	public boolean isTileExcluded(int tileX, int tileY) {
-		return excludedTiles.contains(
-				new Point(tileX, tileY)
-		);
-	}
 
 	public List<String> getExcludedObjectIDs() {
 		List<String> objectIDs = new ArrayList<>();
@@ -395,16 +370,6 @@ public class BlueprintSelectionTool implements GameTool {
 		return tileIDs;
 	}
 
-	public void clearExcludedTiles() {
-		excludedTiles.clear();
-	}
-
-	public void clearSelection() {
-		this.selection = null;
-		this.mouseDownTile = null;
-		this.ctrlMouseDownTile = null;
-		this.excludedTiles.clear();
-	}
 
 	@Override
 	public boolean controllerEvent(ControllerEvent event) {

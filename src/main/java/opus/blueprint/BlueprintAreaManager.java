@@ -75,9 +75,6 @@ public class BlueprintAreaManager {
 		return areas.remove(uniqueID) != null;
 	}
 
-	public boolean containsArea(String uniqueID) {
-		return areas.containsKey(uniqueID);
-	}
 
 	public Collection<BlueprintArea> getAreas() {
 		return Collections.unmodifiableCollection(
@@ -85,25 +82,7 @@ public class BlueprintAreaManager {
 		);
 	}
 
-	public ArrayList<BlueprintArea> getAreasAtTile(
-		int tileX,
-		int tileY
-	) {
-		ArrayList<BlueprintArea> result =
-			new ArrayList<>();
 
-		for (BlueprintArea area : areas.values()) {
-			if (area.containsTile(tileX, tileY)) {
-				result.add(area);
-			}
-		}
-
-		return result;
-	}
-
-	public void clear() {
-		areas.clear();
-	}
 
 	public int size() {
 		return areas.size();

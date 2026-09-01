@@ -192,7 +192,7 @@ public class PacketPlaceBlueprintArea extends Packet {
 		return false;
 	}
 
-	private void ClientErrorMessage(ServerClient client, String category, String translationKey, int seconds) {
+	private void clientErrorMessage(ServerClient client, String category, String translationKey, int seconds) {
 		client.sendPacket(
 				new PacketStatusMessage(
 						Localization.translate(category,translationKey), Color.RED,seconds
@@ -257,30 +257,30 @@ public class PacketPlaceBlueprintArea extends Packet {
 				);
 
 		if (settlement == null) {
-			ClientErrorMessage(client, "misc", "blueprintplaceoutsidesettlement1", 5);
+			clientErrorMessage(client, "misc", "blueprintplaceoutsidesettlement1", 5);
 			return;
 		}
 
 		if (!settlement.networkData.isClientPartOf(client)) {
-			ClientErrorMessage(client, "misc", "blueprintplaceothersettlement", 5);
+			clientErrorMessage(client, "misc", "blueprintplaceothersettlement", 5);
 
 			return;
 		}
 
 		if (!isEntirelyInsideSettlement(
 				settlement, originX, originY, blueprintData.getWidth(), blueprintData.getHeight())) {
-			ClientErrorMessage(client, "misc", "blueprintplaceoutsidesettlement2", 5);
+			clientErrorMessage(client, "misc", "blueprintplaceoutsidesettlement2", 5);
 			return;
 		}
 
 		if (hasUnbreakableObject(
 				level, originX, originY,blueprintData)) {
-			ClientErrorMessage(client, "misc", "blueprintplaceunbreakable", 5);
+			clientErrorMessage(client, "misc", "blueprintplaceunbreakable", 5);
 			return;
 		}
 
 		if (hasInvalidFloatingObjects(level, originX, originY, blueprintData)) {
-			ClientErrorMessage(client, "misc", "blueprintplacefluid", 20);
+			clientErrorMessage(client, "misc", "blueprintplacefluid", 20);
 			return;
 		}
 
@@ -288,7 +288,7 @@ public class PacketPlaceBlueprintArea extends Packet {
 
 		if (overlapsExistingArea(
 				manager, originX, originY, blueprintData.getWidth(), blueprintData.getHeight())) {
-			ClientErrorMessage(client, "misc", "blueprintplaceoverlap", 5);
+			clientErrorMessage(client, "misc", "blueprintplaceoverlap", 5);
 			return;
 		}
 
@@ -302,7 +302,6 @@ public class PacketPlaceBlueprintArea extends Packet {
 						blueprintData
 				);
 
-		// TODO: improve walkability check?
 		for (Point workTile : area.getOutsideBorderTiles()) {
 			if (level.isSolidTile(workTile.x, workTile.y)) {
 				continue;

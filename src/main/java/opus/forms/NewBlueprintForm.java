@@ -170,6 +170,7 @@ public class NewBlueprintForm extends Form {
 							&& !excludedTileIDs.contains(tile.getStringID())
 					) {
 						be.setTileID(tile.getStringID());
+
 						Logging.logMessage("Tile found: " + tile.getDisplayName());
 					}
 
@@ -265,9 +266,6 @@ public class NewBlueprintForm extends Form {
 		mainGame.formManager.creative.setHidden(true);
 	}
 
-	public static boolean isBlueprintCreationOpen() {
-		return builderForm != null;
-	}
 
 	public static void openBlueprintCreation(
 			MainGame mainGame, BiConsumer<String, BlueprintData> onBlueprintCreated
@@ -301,6 +299,10 @@ public class NewBlueprintForm extends Form {
 
 	public static void frameTick(MainGame mainGame, TickManager tickManager, GameWindow gameWindow) {
 		if (mainGame.getClient() == null || mainGame.getClient().getPlayer() == null) {
+			if (builderForm != null) {
+				builderForm.onCancel();
+			}
+
 			return;
 		}
 		if (!mainGame.formManager.pauseMenu.isHidden()) {

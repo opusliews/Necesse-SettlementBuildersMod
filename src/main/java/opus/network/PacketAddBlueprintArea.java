@@ -9,7 +9,6 @@ import necesse.engine.save.LoadData;
 import necesse.level.maps.Level;
 import opus.blueprint.BlueprintArea;
 import opus.blueprint.BlueprintAreaManager;
-import opus.logging.Logging;
 
 public class PacketAddBlueprintArea extends Packet {
 	private final String areaSaveData;
@@ -55,15 +54,5 @@ public class PacketAddBlueprintArea extends Packet {
 
 		manager.addArea(area);
 
-		Logging.logMessage(
-			"CLIENT received blueprint area "
-				+ area.getUniqueID()
-				+ " at "
-				+ area.getOriginX()
-				+ ", "
-				+ area.getOriginY()
-				+ " areas="
-				+ manager.size()
-		);
 	}
 }

@@ -12,10 +12,12 @@ public class BuilderSettler extends Settler {
         super("builderhuman");
     }
 
+    @Override
     public GameMessage getAcquireTip() {
         return new LocalMessage("settlement", "buildertip");
     }
 
+    @Override
     public void setDefaultArmor(HumanDrawOptions drawOptions, int settlerSeed, HumanLook look, boolean customLook) {
         drawOptions.helmet(new InventoryItem("builderhat"));
         drawOptions.chestplate(new InventoryItem("buildershirt"));

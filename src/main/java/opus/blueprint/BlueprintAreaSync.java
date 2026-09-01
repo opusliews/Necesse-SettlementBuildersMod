@@ -2,7 +2,6 @@ package opus.blueprint;
 
 import necesse.engine.network.client.Client;
 import necesse.level.maps.Level;
-import opus.logging.Logging;
 import opus.network.PacketRequestBlueprintAreas;
 
 public class BlueprintAreaSync {
@@ -31,6 +30,5 @@ public class BlueprintAreaSync {
 			new PacketRequestBlueprintAreas()
 		);
 
-		Logging.logMessage("Requested blueprint area sync");
 	}
 }

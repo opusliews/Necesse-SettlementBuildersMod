@@ -10,18 +10,13 @@ import opus.armor.BuilderShirtArmorItem;
 import opus.blueprint.BlueprintAreaLevelData;
 import opus.item.BlueprintItem;
 import opus.jobs.ConstructionLevelJob;
-import opus.logging.Logging;
 import opus.mobs.BuilderHumanMob;
 import opus.network.*;
 import opus.settler.BuilderSettler;
 
 @ModEntry
 public class SettlementBuilders {
-    public static int constructionJobTypeID;
-
     public void init() {
-        Logging.logMessage("Mod is running!");
-
         // Registrations
         SettlerRegistry.registerSettler("builder", new BuilderSettler());
         MobRegistry.registerMob("builderhuman", BuilderHumanMob.class, true);
@@ -30,9 +25,9 @@ public class SettlementBuilders {
         ItemRegistry.registerItem("builderboots", new BuilderBootsArmorItem(), 50.0F, true);
         ItemRegistry.registerItem("blueprintItem", new BlueprintItem(), 10.0F, true);
 
-        LevelDataRegistry.registerLevelData("opusblueprintareas", BlueprintAreaLevelData.class);
+        LevelDataRegistry.registerLevelData(BlueprintAreaLevelData.managerKey, BlueprintAreaLevelData.class);
 
-        constructionJobTypeID = JobTypeRegistry.registerType(
+        JobTypeRegistry.registerType(
                 "construction",
                 new JobType(
                         true,

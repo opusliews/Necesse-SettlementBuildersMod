@@ -125,20 +125,10 @@ public class ConstructionLevelJob extends TileLevelJob {
 
 		return new TileActiveJob(worker, priority, tileX, tileY) {
 			private boolean started;
-			private boolean wasMoving;
 			private boolean invalidLogged;
 
 			@Override
 			public JobMoveToTile getMoveToTile(JobMoveToTile lastTile) {
-				Logging.logMessage(
-						"Builder assigned movement target "
-								+ tileX
-								+ ", "
-								+ tileY
-								+ " for blueprint "
-								+ blueprintAreaUniqueID
-				);
-
 				return new JobMoveToTile(tileX, tileY, false);
 			}
 
@@ -183,34 +173,13 @@ public class ConstructionLevelJob extends TileLevelJob {
 			public void tick(boolean isCurrent, boolean isMovingTo) {
 				ConstructionLevelJob.this.reservable.reserve(worker.getMobWorker());
 
-				if (isMovingTo && !wasMoving) {
-					wasMoving = true;
+				if (isCurrent && !isMovingTo) {
+					BlueprintArea area = BlueprintAreaManager.get(getLevel()).getArea(blueprintAreaUniqueID);
 
-					Logging.logMessage(
-							"Builder started moving toward work tile "
-									+ tileX
-									+ ", "
-									+ tileY
-									+ " for blueprint "
-									+ blueprintAreaUniqueID
-					);
-				}
-				else if (!isMovingTo && wasMoving) {
-					wasMoving = false;
+					if (area == null) {
+						return;
+					}
 
-					Logging.logMessage(
-							"Builder stopped moving for construction job at "
-									+ tileX
-									+ ", "
-									+ tileY
-									+ " for blueprint "
-									+ blueprintAreaUniqueID
-					);
-				}
-				else if (isCurrent && !isMovingTo) {
-					BlueprintArea area = BlueprintAreaManager
-							.get(getLevel())
-							.getArea(blueprintAreaUniqueID);
 					int blueprintCenterX = (area.getOriginX() * 32) + (area.getWidth() * 16);
 					int blueprintCenterY = (area.getOriginY() * 32) + (area.getHeight() * 16);
 
@@ -222,7 +191,6 @@ public class ConstructionLevelJob extends TileLevelJob {
 							true
 					);
 				}
-
 			}
 
 			@Override
@@ -475,7 +443,6 @@ public class ConstructionLevelJob extends TileLevelJob {
 		Map<String, Integer> missing = getMissingProjectMaterials(settlement, area, getLevel(), builder);
 
 		if (!missing.isEmpty()) {
-			area.setMaterialsBlocked(true);
 			sendMissingMaterialsMessage(area, settlement, missing);
 
 			Logging.logMessage(
@@ -488,23 +455,15 @@ public class ConstructionLevelJob extends TileLevelJob {
 			return false;
 		}
 
-		if (area.isMaterialsBlocked()) {
-			Logging.logMessage(
-					"Blueprint "
-							+ area.getUniqueID()
-							+ " is no longer missing materials"
-			);
-		}
 
-		area.setMaterialsBlocked(false);
 
 		List<ActiveJob> dumpJobs = new ArrayList<>();
 
 		if (!addCurrentInventoryDropOffJobs(worker, priority, dumpJobs)) {
-			sendConstructionMessage(
-					area,
-					settlement,
-					"constructionnostoragespace"
+			Logging.logMessage(
+					"Builder "
+							+ worker.getMobWorker().getUniqueID()
+							+ " could not currently schedule a settlement storage drop-off; construction will retry"
 			);
 
 			return false;
@@ -530,7 +489,6 @@ public class ConstructionLevelJob extends TileLevelJob {
 					getMissingProjectMaterials(settlement, area, getLevel(), builder);
 
 			if (!missingAfterReservation.isEmpty()) {
-				area.setMaterialsBlocked(true);
 				sendMissingMaterialsMessage(area, settlement, missingAfterReservation);
 
 				Logging.logMessage(
@@ -901,7 +859,6 @@ public class ConstructionLevelJob extends TileLevelJob {
 		}
 
 		area.setConstructionComplete(true);
-		area.setMaterialsBlocked(false);
 		area.clearConstructionBlockedReason();
 
 		syncBlueprintAreas(level);
@@ -938,10 +895,10 @@ public class ConstructionLevelJob extends TileLevelJob {
 		List<ActiveJob> dumpJobs = new ArrayList<>();
 
 		if (!addCurrentInventoryDropOffJobs(worker, priority, dumpJobs)) {
-			sendConstructionMessage(
-					area,
-					settlement,
-					"constructionnostoragespace"
+			Logging.logMessage(
+					"Builder "
+							+ worker.getMobWorker().getUniqueID()
+							+ " could not currently schedule a settlement storage drop-off; construction will retry"
 			);
 
 			return false;
@@ -1043,7 +1000,7 @@ public class ConstructionLevelJob extends TileLevelJob {
 		);
 	}
 
-	public int getRandomNumber(int min, int max) {
+	private int getRandomNumber(int min, int max) {
 		return (int) ((Math.random() * (max - min)) + min);
 	}
 
@@ -1131,7 +1088,6 @@ public class ConstructionLevelJob extends TileLevelJob {
 		Map<String, Integer> missing = getMissingProjectMaterials(settlement, area, job.getLevel(), worker);
 
 		if (!missing.isEmpty()) {
-			area.setMaterialsBlocked(true);
 			sendMissingMaterialsMessage(area, settlement, missing);
 
 			Logging.logMessage(
@@ -1144,15 +1100,7 @@ public class ConstructionLevelJob extends TileLevelJob {
 			return null;
 		}
 
-		if (area.isMaterialsBlocked()) {
-			Logging.logMessage(
-					"Blueprint "
-							+ area.getUniqueID()
-							+ " is no longer blocked"
-			);
-		}
 
-		area.setMaterialsBlocked(false);
 
 		if (!area.hasConstructionStarted()) {
 			area.setConstructionStarted(true);
@@ -1164,26 +1112,9 @@ public class ConstructionLevelJob extends TileLevelJob {
 			);
 		}
 
-		Logging.logMessage(
-				"Creating JobSequence for blueprint "
-						+ job.blueprintAreaUniqueID
-						+ " at work tile "
-						+ job.tileX
-						+ ", "
-						+ job.tileY
-		);
-
 		int builderUniqueID = worker.getUniqueID();
 
 		if (area.isBuilderAssigned(builderUniqueID)) {
-			Logging.logMessage(
-					"Builder "
-							+ builderUniqueID
-							+ " resumed blueprint "
-							+ area.getUniqueID()
-							+ " after load"
-			);
-
 			LinkedListJobSequence sequence = new LinkedListJobSequence(
 					new LocalMessage("activities", "construction"),
 					false
@@ -1280,13 +1211,6 @@ public class ConstructionLevelJob extends TileLevelJob {
 		return sequence;
 	}
 
-	private static int getSimulatedCanAddAmount(List<InventoryItem> inventory, InventoryItem item) {
-		if (inventory.size() > 4) {
-			return 0;
-		}
-
-		return item.getAmount();
-	}
 
 	private static Map<String, Integer> getBuilderMaterialAllocation(
 			Level level, BlueprintArea area, int builderUniqueID
@@ -1305,11 +1229,11 @@ public class ConstructionLevelJob extends TileLevelJob {
 				continue;
 			}
 
-			InventoryItem item = new InventoryItem(itemID, 1);
-
-			if (getSimulatedCanAddAmount(simulatedInventory, item) <= 0) {
+			if (simulatedInventory.size() >= BuilderHumanMob.maxWorkInventoryStacks) {
 				break;
 			}
+
+			InventoryItem item = new InventoryItem(itemID, 1);
 
 			item.combineOrAddToList(level, null, simulatedInventory, "construction");
 

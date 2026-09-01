@@ -18,12 +18,14 @@ import opus.tools.BlueprintData;
 import opus.tools.BlueprintElement;
 
 import java.awt.*;
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.WeakHashMap;
 
 public final class BlueprintAreaHud {
-	private static final WeakHashMap<Level, HudDrawElement> hudElements =
-			new WeakHashMap<>();
+	private static final Set<Level> addedLevels =
+			Collections.newSetFromMap(new WeakHashMap<>());
 
 	private static final int tileSize = 32;
 	private static final float ghostAlpha = 0.3F;
@@ -35,7 +37,7 @@ public final class BlueprintAreaHud {
 	}
 
 	public static void ensureAdded(Level level) {
-		if (level == null || hudElements.containsKey(level)) {
+		if (level == null || addedLevels.contains(level)) {
 			return;
 		}
 
@@ -66,10 +68,7 @@ public final class BlueprintAreaHud {
 
 		level.hudManager.addElement(element);
 
-		hudElements.put(
-				level,
-				element
-		);
+		addedLevels.add(level);
 	}
 
 	private static void drawBlueprintAreas(

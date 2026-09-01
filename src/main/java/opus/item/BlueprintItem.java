@@ -400,10 +400,6 @@ public class BlueprintItem extends Item implements ItemInteractAction, Placeable
 				return item;
 			}
 
-			if (!hasBlueprint(item)) {
-				return item;
-			}
-
 			PlayerInventoryItemAttackSlot playerSlot =
 					(PlayerInventoryItemAttackSlot)slot;
 

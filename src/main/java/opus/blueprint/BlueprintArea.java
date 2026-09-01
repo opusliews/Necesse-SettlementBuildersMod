@@ -32,7 +32,6 @@ public class BlueprintArea {
 	private final int settlementUniqueID;
 
 	private boolean constructionStarted;
-	private boolean materialsBlocked;
 	private String constructionBlockedReason;
 
 	private boolean constructionComplete;
@@ -133,24 +132,11 @@ public class BlueprintArea {
 		return builders;
 	}
 
-	public int getEndX() {
-		return originX + width - 1;
-	}
-
-	public int getEndY() {
-		return originY + height - 1;
-	}
 
 	public BlueprintData getBlueprintData() {
 		return blueprintData;
 	}
 
-	public boolean containsTile(int tileX, int tileY) {
-		return tileX >= originX
-			&& tileY >= originY
-			&& tileX < originX + width
-			&& tileY < originY + height;
-	}
 
 	public Rectangle getTileBounds() {
 		return new Rectangle(
@@ -329,9 +315,6 @@ public class BlueprintArea {
 		this.constructionStarted = constructionStarted;
 	}
 
-	public boolean isMaterialsBlocked() {
-		return materialsBlocked;
-	}
 
 	public boolean setConstructionBlockedReason(String reason) {
 		if (Objects.equals(constructionBlockedReason, reason)) {
@@ -346,9 +329,6 @@ public class BlueprintArea {
 		constructionBlockedReason = null;
 	}
 
-	public void setMaterialsBlocked(boolean materialsBlocked) {
-		this.materialsBlocked = materialsBlocked;
-	}
 
 	public SaveData getSaveData() {
 		SaveData save = new SaveData("BLUEPRINT_AREA");
@@ -401,7 +381,7 @@ public class BlueprintArea {
 		return save;
 	}
 
-	public void consumeBuilderMaterialAllocation(
+	private void consumeBuilderMaterialAllocation(
 			int builderUniqueID,
 			String itemID,
 			int amount
@@ -493,7 +473,7 @@ public class BlueprintArea {
 		return true;
 	}
 
-	public boolean isObjectPlacementElement(BlueprintElement element) {
+	private boolean isObjectPlacementElement(BlueprintElement element) {
 		if (element == null || element.getObjectID() == null) {
 			return false;
 		}

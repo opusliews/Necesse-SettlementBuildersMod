@@ -13,10 +13,9 @@ public class BlueprintElement {
 
 	private int rotation;
 
-	private boolean empty;
 
 	public boolean isEmpty() {
-		return empty;
+		return tileID == null && objectID == null;
 	}
 
 	public int getX() {
@@ -38,12 +37,10 @@ public class BlueprintElement {
 
 	public void setTileID(String tileID) {
 		this.tileID = tileID;
-		this.empty = false;
 	}
 
 	public void setObjectID(String objectID) {
 		this.objectID = objectID;
-		this.empty = false;
 	}
 
 	public int getRotation() {
@@ -57,7 +54,6 @@ public class BlueprintElement {
 	public BlueprintElement(int x, int y) {
 		this.x = x;
 		this.y = y;
-		this.empty = true;
 	}
 
 	public static boolean isBlueprintObject(GameObject gameObject) {
