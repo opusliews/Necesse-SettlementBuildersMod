@@ -20,6 +20,7 @@ import opus.config.SettlementBuildersSettings;
 import opus.container.BlueprintWorkstationContainer;
 import opus.damage.DamageRepairLevelData;
 import opus.damage.HardcoreDamage;
+import opus.damage.WoodWeatheringLevelData;
 import opus.forms.BlueprintWorkstationContainerForm;
 import opus.item.BlueprintItem;
 import opus.item.ProjectEraserItem;
@@ -74,6 +75,7 @@ public class SettlementBuilders {
 
         LevelDataRegistry.registerLevelData(BlueprintAreaLevelData.managerKey, BlueprintAreaLevelData.class);
         LevelDataRegistry.registerLevelData(DamageRepairLevelData.managerKey, DamageRepairLevelData.class);
+        LevelDataRegistry.registerLevelData(WoodWeatheringLevelData.managerKey, WoodWeatheringLevelData.class);
 
         JobTypeRegistry.registerType(
                 "construction",

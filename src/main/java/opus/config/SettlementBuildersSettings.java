@@ -12,7 +12,7 @@ public class SettlementBuildersSettings extends ModSettings {
 		save.addBoolean(
 				"hardcoreDamage",
 				hardcoreDamage,
-				"If true, damaged tiles and objects do not recover naturally and Builders repair them"
+				"If true, damaged tiles and objects do not recover naturally, Builders repair them, and exposed wooden objects weather in rain"
 		);
 	}
 
