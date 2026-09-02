@@ -3,11 +3,17 @@ package opus.mobs;
 import necesse.engine.expeditions.SettlerExpedition;
 import necesse.engine.localization.message.GameMessage;
 import necesse.engine.network.server.ServerClient;
+import necesse.engine.registries.SettlerRegistry;
+import necesse.engine.save.LoadData;
 import necesse.engine.util.GameRandom;
+import necesse.engine.world.WorldFile;
+import necesse.engine.world.worldData.SettlementsWorldData;
 import necesse.entity.mobs.friendly.human.humanShop.HumanShop;
 import necesse.entity.mobs.friendly.human.humanShop.SellingShopItem;
 import necesse.entity.mobs.job.WorkInventory;
 import necesse.inventory.InventoryItem;
+import necesse.level.maps.levelData.settlementData.CachedSettlementData;
+import necesse.level.maps.levelData.settlementData.ServerSettlementData;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -17,6 +23,37 @@ import java.util.stream.Stream;
 
 public class BuilderHumanMob extends HumanShop {
     public static final int maxWorkInventoryStacks = 5;
+    private static final int buildersPerRecruitTier = 3;
+
+    private static final String[][] recruitBarTiers = {
+            {"copperbar", "ironbar", "goldbar"},
+            {"goldbar", "demonicbar"},
+            {"demonicbar", "glacialbar"},
+            {"glacialbar", "tungstenbar"},
+            {"tungstenbar", "ivybar"},
+            {"ivybar", "myceliumbar"},
+            {"myceliumbar", "ancientfossilbar"},
+            {"myceliumbar", "ancientfossilbar"} // Repeated intentionaly for last tier
+    };
+
+    private static final String[][] recruitRockTiers = {
+            {"stone"},
+            {"stone", "sandstone"},
+            {"sandstone", "deepsnowstone"},
+            {"deepsnowstone", "deepstone"},
+            {"deepstone", "swampstone"},
+            {"swampstone", "deepswampstone"},
+            {"deepswampstone", "deepsandstone"},
+            {"deepswampstone", "deepsandstone"} // Repeated intentionaly for last tier
+    };
+
+    private static final String[] recruitCrystals = {
+            "amethyst",
+            "emerald",
+            "ruby",
+            "sapphire",
+            "topaz"
+    };
 
     public BuilderHumanMob() {
         super(500, 200, "builder");
@@ -62,16 +99,151 @@ public class BuilderHumanMob extends HumanShop {
 
     @Override
     public List<InventoryItem> getRecruitItems(ServerClient client) {
-        if (this.isTrapped()) {
-            return Collections.emptyList();
-        } else {
-            GameRandom random = new GameRandom((long)this.getSettlerSeed() * 227L);
-            if (this.isVisitor()) {
-                return Collections.singletonList(new InventoryItem("coin", random.getIntBetween(250, 400)));
+        int tier = getRecruitTier(client);
+
+        GameRandom random = new GameRandom(
+                (long)this.getSettlerSeed() * 227L
+                        + tier * 7919L
+        );
+
+        String barID = getRecruitBarID(random, tier);
+        String rockID = getRecruitRockID(random, tier);
+
+        ArrayList<InventoryItem> items = new ArrayList<>();
+
+        items.add(
+                new InventoryItem(
+                        barID,
+                        random.getIntBetween(4, 10)
+                )
+        );
+
+        items.add(
+                new InventoryItem(
+                        rockID,
+                        random.getIntBetween(25, 50)
+                )
+        );
+
+        if (tier == 7) {
+            String crystalID = getRecruitCrystalID(random);
+
+            items.add(
+                    new InventoryItem(
+                            crystalID,
+                            random.getIntBetween(3, 7)
+                    )
+            );
+        }
+
+        return items;
+    }
+
+    private int getCombinedBuilderCount(ServerClient client) {
+        SettlementsWorldData settlementsData =
+                SettlementsWorldData.getSettlementsData(client.getServer());
+
+        int builderCount = 0;
+
+        for (Object object : settlementsData.collectCachedSettlements(
+                cached -> ((CachedSettlementData)cached).hasAccess(client)
+        )) {
+            CachedSettlementData cached = (CachedSettlementData)object;
+
+            ServerSettlementData settlement =
+                    settlementsData.getServerData(cached.uniqueID);
+
+            if (settlement != null) {
+                builderCount += settlement.getSettlerCount(
+                        SettlerRegistry.getSettler("builder")
+                );
             } else {
-                return Collections.emptyList();
+                builderCount += getSavedBuilderCount(
+                        client,
+                        cached.uniqueID
+                );
             }
         }
+
+        return builderCount;
+    }
+
+    private int getSavedBuilderCount(
+            ServerClient client,
+            int settlementUniqueID
+    ) {
+        try {
+            WorldFile file = client
+                    .getServer()
+                    .world
+                    .fileSystem
+                    .getSettlementFile(settlementUniqueID);
+
+            if (!file.exists()) {
+                return 0;
+            }
+
+            LoadData save = new LoadData(file);
+            LoadData serverSave =
+                    save.getFirstLoadDataByName("SERVER");
+
+            if (serverSave == null) {
+                return 0;
+            }
+
+            LoadData settlersSave =
+                    serverSave.getFirstLoadDataByName("SETTLERS");
+
+            if (settlersSave == null) {
+                return 0;
+            }
+
+            int count = 0;
+
+            for (Object object : settlersSave.getLoadDataByName("SETTLER")) {
+                LoadData settlerLoad = (LoadData)object;
+
+                if ("builder".equals(
+                        settlerLoad.getUnsafeString(
+                                "stringID",
+                                null,
+                                false
+                        )
+                )) {
+                    count++;
+                }
+            }
+
+            return count;
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
+    private int getRecruitTier(ServerClient client) {
+        int builderCount = getCombinedBuilderCount(client);
+
+        return Math.min(
+                builderCount / buildersPerRecruitTier,
+                recruitBarTiers.length - 1
+        );
+    }
+
+    private String getRecruitBarID(GameRandom random, int tier) {
+        String[] options = recruitBarTiers[tier];
+        return options[random.nextInt(options.length)];
+    }
+
+    private String getRecruitRockID(GameRandom random, int tier) {
+        String[] options = recruitRockTiers[
+                Math.min(tier, recruitRockTiers.length - 1)
+                ];
+
+        return options[random.nextInt(options.length)];
+    }
+
+    private String getRecruitCrystalID(GameRandom random) {
+        return recruitCrystals[random.nextInt(recruitCrystals.length)];
     }
 
     // Inventory overrides, to remove broker value limits to builder inventory

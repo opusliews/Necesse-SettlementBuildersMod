@@ -30,6 +30,8 @@ import opus.mobs.BuilderHumanMob;
 import opus.network.*;
 import opus.object.BlueprintWorkstationObject;
 import opus.object.BlueprintWorkstationObjectEntity;
+import opus.object.BuilderJobRequestBulletinObject;
+import opus.settler.BuilderRequestLevelData;
 import opus.settler.BuilderSettler;
 
 @ModEntry
@@ -44,13 +46,23 @@ public class SettlementBuilders {
     public void init() {
         // Registrations
         SettlerRegistry.registerSettler("builder", new BuilderSettler());
-        MobRegistry.registerMob("builderhuman", BuilderHumanMob.class, true);
-        ItemRegistry.registerItem("builderhat", new BuilderHatArmorItem(), 50.0F, true);
-        ItemRegistry.registerItem("buildershirt", new BuilderShirtArmorItem(), 50.0F, true);
-        ItemRegistry.registerItem("builderboots", new BuilderBootsArmorItem(), 50.0F, true);
-        ItemRegistry.registerItem("blueprintItem", new BlueprintItem(), 25.0F, true);
-        ItemRegistry.registerItem("projecteraser", new ProjectEraserItem(), 30.0F, true);
-        ObjectRegistry.registerObject("blueprintworkstation", new BlueprintWorkstationObject(), 100.0F, true);
+        MobRegistry.registerMob("builderhuman",
+                BuilderHumanMob.class, true);
+        ItemRegistry.registerItem("builderhat",
+                new BuilderHatArmorItem(), 50.0F, true);
+        ItemRegistry.registerItem("buildershirt",
+                new BuilderShirtArmorItem(), 50.0F, true);
+        ItemRegistry.registerItem("builderboots",
+                new BuilderBootsArmorItem(), 50.0F, true);
+        ItemRegistry.registerItem("blueprintItem",
+                new BlueprintItem(), 25.0F, true);
+        ItemRegistry.registerItem("projecteraser",
+                new ProjectEraserItem(), 30.0F, true);
+        ObjectRegistry.registerObject("blueprintworkstation",
+                new BlueprintWorkstationObject(), 100.0F, true);
+        ObjectRegistry.registerObject(
+                BuilderJobRequestBulletinObject.stringID,
+                new BuilderJobRequestBulletinObject(), 25.0F, true);
 
 
         blueprintWorkstationContainerID = ContainerRegistry.registerSettlementDependantOEContainer(
@@ -76,6 +88,7 @@ public class SettlementBuilders {
         LevelDataRegistry.registerLevelData(BlueprintAreaLevelData.managerKey, BlueprintAreaLevelData.class);
         LevelDataRegistry.registerLevelData(DamageRepairLevelData.managerKey, DamageRepairLevelData.class);
         LevelDataRegistry.registerLevelData(WoodWeatheringLevelData.managerKey, WoodWeatheringLevelData.class);
+        LevelDataRegistry.registerLevelData(BuilderRequestLevelData.managerKey, BuilderRequestLevelData.class);
 
         JobTypeRegistry.registerType(
                 "construction",
@@ -186,6 +199,16 @@ public class SettlementBuilders {
                 new Ingredient[]{
                         new Ingredient("quillandparchment", 1),
                         new Ingredient("ironbar", 1)
+                }
+        ));
+
+        Recipes.registerModRecipe(new Recipe(
+                BuilderJobRequestBulletinObject.stringID,
+                1,
+                RecipeTechRegistry.WORKSTATION,
+                new Ingredient[]{
+                        new Ingredient("stackofpaper", 1),
+                        new Ingredient("quillandparchment", 1)
                 }
         ));
     }
