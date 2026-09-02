@@ -81,7 +81,7 @@ public class BlueprintWorkstationContainerForm extends ContainerFormSwitcher {
 				FormInputSize.SIZE_24,
 				ButtonColor.BASE,
 				getInterfaceStyle().copy_button,
-				new GameMessage[]{new StaticMessage("Copy blueprint JSON")}
+				new GameMessage[]{new StaticMessage("Copy blueprint")}
 		));
 		copyButton.onClicked(event -> copyBlueprint());
 
@@ -91,7 +91,7 @@ public class BlueprintWorkstationContainerForm extends ContainerFormSwitcher {
 				FormInputSize.SIZE_24,
 				ButtonColor.BASE,
 				getInterfaceStyle().paste_button,
-				new GameMessage[]{new StaticMessage("Paste blueprint JSON")}
+				new GameMessage[]{new StaticMessage("Paste blueprint")}
 		));
 		pasteButton.onClicked(event -> pasteBlueprint());
 
