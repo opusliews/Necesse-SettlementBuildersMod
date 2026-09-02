@@ -1,6 +1,7 @@
 package opus;
 
 import necesse.engine.localization.message.LocalMessage;
+import necesse.engine.modLoader.ModSettings;
 import necesse.engine.modLoader.annotations.ModEntry;
 import necesse.engine.registries.*;
 import necesse.entity.mobs.job.JobType;
@@ -8,14 +9,23 @@ import opus.armor.BuilderBootsArmorItem;
 import opus.armor.BuilderHatArmorItem;
 import opus.armor.BuilderShirtArmorItem;
 import opus.blueprint.BlueprintAreaLevelData;
+import opus.config.SettlementBuildersSettings;
+import opus.damage.DamageRepairLevelData;
 import opus.item.BlueprintItem;
 import opus.jobs.ConstructionLevelJob;
+import opus.jobs.RepairLevelJob;
 import opus.mobs.BuilderHumanMob;
 import opus.network.*;
 import opus.settler.BuilderSettler;
 
 @ModEntry
 public class SettlementBuilders {
+    public static final SettlementBuildersSettings settings = new SettlementBuildersSettings();
+
+    public ModSettings initSettings() {
+        return settings;
+    }
+
     public void init() {
         // Registrations
         SettlerRegistry.registerSettler("builder", new BuilderSettler());
@@ -26,6 +36,7 @@ public class SettlementBuilders {
         ItemRegistry.registerItem("blueprintItem", new BlueprintItem(), 10.0F, true);
 
         LevelDataRegistry.registerLevelData(BlueprintAreaLevelData.managerKey, BlueprintAreaLevelData.class);
+        LevelDataRegistry.registerLevelData(DamageRepairLevelData.managerKey, DamageRepairLevelData.class);
 
         JobTypeRegistry.registerType(
                 "construction",
@@ -44,6 +55,13 @@ public class SettlementBuilders {
                 "construction"
         );
 
+        LevelJobRegistry.registerJob(
+                "repair",
+                RepairLevelJob.class,
+                RepairLevelJob::handler,
+                "construction"
+        );
+
         PacketRegistry.registerPacket(PacketBlueprintUpdate.class);
         PacketRegistry.registerPacket(PacketPlaceBlueprintArea.class);
         PacketRegistry.registerPacket(PacketRequestBlueprintAreas.class);
@@ -52,5 +70,6 @@ public class SettlementBuilders {
         PacketRegistry.registerPacket(PacketRemoveBlueprintArea.class);
         PacketRegistry.registerPacket(PacketBuilderTilePlaceSound.class);
         PacketRegistry.registerPacket(PacketBuilderObjectPlaceSound.class);
+        PacketRegistry.registerPacket(PacketHardcoreDamageSetting.class);
     }
 }

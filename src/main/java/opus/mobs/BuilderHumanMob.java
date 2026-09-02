@@ -38,6 +38,11 @@ public class BuilderHumanMob extends HumanShop {
         this.jobTypeHandler.globalCooldown = 0L;
     }
 
+    public int getWorkActionDelay() {
+        int happiness = Math.max(0, Math.min(100, getSettlerHappiness()));
+        return 5000 - happiness * 45;
+    }
+
     @Override
     protected ArrayList<GameMessage> getMessages(ServerClient client) {
         return this.getLocalMessages("buildertalk", 7);

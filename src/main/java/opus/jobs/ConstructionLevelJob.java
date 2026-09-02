@@ -13,7 +13,6 @@ import necesse.engine.save.SaveData;
 import necesse.engine.world.worldData.SettlementsWorldData;
 import necesse.entity.AbstractDamageResult;
 import necesse.entity.mobs.Mob;
-import necesse.entity.mobs.friendly.human.HumanMob;
 import necesse.entity.mobs.job.*;
 import necesse.entity.mobs.job.activeJob.*;
 import necesse.entity.pickup.ItemPickupEntity;
@@ -230,18 +229,9 @@ public class ConstructionLevelJob extends TileLevelJob {
 				return valid;
 			}
 
-			/*
-			 * Calculate working speed
-			 * From 5 seconds to 0.5 seconds of delay, based on happiness
-			 */
-			private int getWorkActionDelay(EntityJobWorker worker) {
-				int happiness = Math.max(0, Math.min(100, ((HumanMob)worker.getMobWorker()).getSettlerHappiness()));
-				return 5000 - happiness * 45;
-			}
-
 			@Override
 			public ActiveJobResult perform() {
-				int actionDelay = getWorkActionDelay(worker);
+				int actionDelay = ((BuilderHumanMob)worker.getMobWorker()).getWorkActionDelay();
 				long currentTime = getLevel().getTime();
 
 				BlueprintArea area = BlueprintAreaManager
