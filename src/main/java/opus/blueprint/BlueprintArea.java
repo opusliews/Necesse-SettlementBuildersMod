@@ -325,10 +325,22 @@ public class BlueprintArea {
 		return true;
 	}
 
-	public void clearConstructionBlockedReason() {
+	public boolean clearConstructionBlockedReason() {
+		if (constructionBlockedReason == null) {
+			return false;
+		}
+
 		constructionBlockedReason = null;
+		return true;
 	}
 
+	public String getConstructionBlockedReason() {
+		return constructionBlockedReason;
+	}
+
+	public boolean isConstructionBlocked() {
+		return constructionBlockedReason != null;
+	}
 
 	public SaveData getSaveData() {
 		SaveData save = new SaveData("BLUEPRINT_AREA");
@@ -349,6 +361,10 @@ public class BlueprintArea {
 
 		save.addBoolean("constructionStarted", constructionStarted);
 		save.addBoolean("constructionComplete", constructionComplete);
+
+		if (constructionBlockedReason != null) {
+			save.addUnsafeString("constructionBlockedReason", constructionBlockedReason);
+		}
 
 		if (!assignedBuilderIDs.isEmpty()) {
 			SaveData buildersSave = new SaveData("BUILDERS");
@@ -621,6 +637,9 @@ public class BlueprintArea {
 		boolean constructionStarted = load.getBoolean("constructionStarted", false, false);
 		boolean constructionComplete = load.getBoolean("constructionComplete", false, false);
 
+		String constructionBlockedReason =
+				load.getUnsafeString("constructionBlockedReason", null, false);
+
 		BlueprintArea area = new BlueprintArea(
 				uniqueID,
 				settlementUniqueID,
@@ -632,6 +651,8 @@ public class BlueprintArea {
 				constructionStarted,
 				constructionComplete
 		);
+
+		area.constructionBlockedReason = constructionBlockedReason;
 
 		LoadData buildersSave = load.getFirstLoadDataByName("BUILDERS");
 

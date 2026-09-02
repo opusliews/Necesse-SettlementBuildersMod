@@ -9,7 +9,7 @@ import necesse.inventory.lootTable.presets.CosmeticSetArmorLootTable;
 
 public class BuilderHatArmorItem extends SetHelmetArmorItem {
    public BuilderHatArmorItem() {
-      super(0, (DamageType)null, 0, CosmeticArmorLootTable.cosmeticArmor, CosmeticSetArmorLootTable.cosmeticSetArmor, Item.Rarity.COMMON, "builderhat", "buildershirt", "builderboots", (String)null);
+      super(1, (DamageType)null, 0, CosmeticArmorLootTable.cosmeticArmor, CosmeticSetArmorLootTable.cosmeticSetArmor, Item.Rarity.COMMON, "builderhat", "buildershirt", "builderboots", (String)null);
       this.facialFeatureDrawOptions = ArmorItem.FacialFeatureDrawMode.OVER_FACIAL_FEATURE;
       this.hairDrawOptions = ArmorItem.HairDrawMode.OVER_HAIR;
       this.hairMaskTextureName = "safarihat_hardhat_minerhat_hairmask";

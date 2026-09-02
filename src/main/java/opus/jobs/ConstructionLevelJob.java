@@ -34,6 +34,7 @@ import necesse.level.maps.levelData.settlementData.storage.SettlementStorageReco
 import opus.blueprint.*;
 import opus.logging.Logging;
 import opus.mobs.BuilderHumanMob;
+import opus.network.PacketBlueprintBlockedState;
 import opus.network.PacketBuilderObjectPlaceSound;
 import opus.network.PacketBuilderTilePlaceSound;
 import opus.network.PacketSyncBlueprintAreas;
@@ -427,7 +428,7 @@ public class ConstructionLevelJob extends TileLevelJob {
 		Map<String, Integer> missing = getMissingProjectMaterials(settlement, area, getLevel(), builder);
 
 		if (!missing.isEmpty()) {
-			sendMissingMaterialsMessage(area, settlement, missing);
+			sendMissingMaterialsMessage(getLevel(), area, settlement, missing);
 
 			Logging.logMessage(
 					"Blueprint "
@@ -473,7 +474,7 @@ public class ConstructionLevelJob extends TileLevelJob {
 					getMissingProjectMaterials(settlement, area, getLevel(), builder);
 
 			if (!missingAfterReservation.isEmpty()) {
-				sendMissingMaterialsMessage(area, settlement, missingAfterReservation);
+				sendMissingMaterialsMessage(getLevel(), area, settlement, missingAfterReservation);
 
 				Logging.logMessage(
 						"Blueprint "
@@ -483,6 +484,7 @@ public class ConstructionLevelJob extends TileLevelJob {
 				);
 			} else {
 				sendConstructionMessage(
+						getLevel(),
 						area,
 						settlement,
 						"constructionmaterialsunavailable"
@@ -498,7 +500,9 @@ public class ConstructionLevelJob extends TileLevelJob {
 			return false;
 		}
 
-		area.clearConstructionBlockedReason();
+		if (area.clearConstructionBlockedReason()) {
+			syncConstructionBlockedReason(getLevel(), area);
+		}
 
 		area.setBuilderMaterialAllocation(builderUniqueID, allocation);
 
@@ -752,6 +756,7 @@ public class ConstructionLevelJob extends TileLevelJob {
 	}
 
 	private static void sendMissingMaterialsMessage(
+			Level level,
 			BlueprintArea area,
 			ServerSettlementData settlement,
 			Map<String, Integer> missing
@@ -775,6 +780,7 @@ public class ConstructionLevelJob extends TileLevelJob {
 		}
 
 		sendConstructionMessage(
+				level,
 				area,
 				settlement,
 				"constructionmissingmaterials",
@@ -784,6 +790,7 @@ public class ConstructionLevelJob extends TileLevelJob {
 	}
 
 	private static void sendConstructionMessage(
+			Level level,
 			BlueprintArea area,
 			ServerSettlementData settlement,
 			String translationKey
@@ -791,6 +798,8 @@ public class ConstructionLevelJob extends TileLevelJob {
 		if (!area.setConstructionBlockedReason(translationKey)) {
 			return;
 		}
+
+		syncConstructionBlockedReason(level, area);
 
 		String message = Localization.translate("jobs", translationKey);
 
@@ -800,6 +809,7 @@ public class ConstructionLevelJob extends TileLevelJob {
 	}
 
 	private static void sendConstructionMessage(
+			Level level,
 			BlueprintArea area,
 			ServerSettlementData settlement,
 			String translationKey,
@@ -809,6 +819,8 @@ public class ConstructionLevelJob extends TileLevelJob {
 		if (!area.setConstructionBlockedReason(translationKey)) {
 			return;
 		}
+
+		syncConstructionBlockedReason(level, area);
 
 		String message =
 				GameColor.RED.getColorCode()
@@ -843,7 +855,9 @@ public class ConstructionLevelJob extends TileLevelJob {
 		}
 
 		area.setConstructionComplete(true);
-		area.clearConstructionBlockedReason();
+		if (area.clearConstructionBlockedReason()) {
+			syncConstructionBlockedReason(level, area);
+		}
 
 		syncBlueprintAreas(level);
 
@@ -888,7 +902,9 @@ public class ConstructionLevelJob extends TileLevelJob {
 			return false;
 		}
 
-		area.clearConstructionBlockedReason();
+		if (area.clearConstructionBlockedReason()) {
+			syncConstructionBlockedReason(getLevel(), area);
+		}
 
 		sequence.addAll(dumpJobs);
 		sequence.add(getCompletionCleanupActiveJob(worker, priority));
@@ -1092,7 +1108,7 @@ public class ConstructionLevelJob extends TileLevelJob {
 		}
 
 		if (!missing.isEmpty()) {
-			sendMissingMaterialsMessage(area, settlement, missing);
+			sendMissingMaterialsMessage(job.getLevel(), area, settlement, missing);
 
 			Logging.logMessage(
 					"Blueprint "
@@ -1147,12 +1163,28 @@ public class ConstructionLevelJob extends TileLevelJob {
 		Map<String, Integer> allocation = getBuilderMaterialAllocation(job.getLevel(), area, builderUniqueID);
 
 		if (allocation.isEmpty()) {
-			cancelPlannedJobs(dumpJobs);
-			return null;
+			area.assignBuilder(worker);
+
+			Logging.logMessage(
+					"Builder "
+							+ builderUniqueID
+							+ " joined blueprint "
+							+ area.getUniqueID()
+							+ " without material allocation; using shared Builder materials"
+			);
+
+			LinkedListJobSequence sequence = new LinkedListJobSequence(
+					new LocalMessage("activities", "construction"),
+					false
+			);
+
+			sequence.addAll(dumpJobs);
+			sequence.add(job.getActiveJob(worker, foundJob.priority, sequence));
+
+			return sequence;
 		}
 
 		List<SettlementStoragePickupSlot> pickupSlots = reserveBuilderMaterials(worker, allocation);
-
 		if (pickupSlots == null) {
 			cancelPlannedJobs(dumpJobs);
 
@@ -1160,7 +1192,7 @@ public class ConstructionLevelJob extends TileLevelJob {
 					getMissingProjectMaterials(settlement, area, job.getLevel(), worker);
 
 			if (!missingAfterReservation.isEmpty()) {
-				sendMissingMaterialsMessage(area, settlement, missingAfterReservation);
+				sendMissingMaterialsMessage(job.getLevel(), area, settlement, missingAfterReservation);
 
 				Logging.logMessage(
 						"Blueprint "
@@ -1170,6 +1202,7 @@ public class ConstructionLevelJob extends TileLevelJob {
 				);
 			} else {
 				sendConstructionMessage(
+						job.getLevel(),
 						area,
 						settlement,
 						"constructionmaterialsunavailable"
@@ -1185,7 +1218,9 @@ public class ConstructionLevelJob extends TileLevelJob {
 			return null;
 		}
 
-		area.clearConstructionBlockedReason();
+		if (area.clearConstructionBlockedReason()) {
+			syncConstructionBlockedReason(job.getLevel(), area);
+		}
 
 		area.assignBuilder(worker);
 		area.setBuilderMaterialAllocation(builderUniqueID, allocation);
@@ -1339,6 +1374,23 @@ public class ConstructionLevelJob extends TileLevelJob {
 				area.releaseBuilder(builderUniqueID);
 			}
 		}
+	}
+
+	private static void syncConstructionBlockedReason(
+			Level level,
+			BlueprintArea area
+	) {
+		if (!level.isServer()) {
+			return;
+		}
+
+		level.getServer().network.sendToClientsAtEntireLevel(
+				new PacketBlueprintBlockedState(
+						area.getUniqueID(),
+						area.getConstructionBlockedReason()
+				),
+				level
+		);
 	}
 
 	public static JobTypeHandler.SubHandler handler(EntityJobWorker worker, JobTypeHandler handler) {

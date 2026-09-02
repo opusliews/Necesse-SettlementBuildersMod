@@ -29,8 +29,10 @@ public final class BlueprintAreaHud {
 
 	private static final int tileSize = 32;
 	private static final float ghostAlpha = 0.3F;
-	private static final Color areaColor =
+	private static final Color areaColorOk =
 			new Color(0, 0, 155);
+	private static final Color areaColorBlocked =
+			new Color(200, 0, 0);
 	private static final float areaOpacity = 0.3F;
 
 	private BlueprintAreaHud() {
@@ -131,6 +133,10 @@ public final class BlueprintAreaHud {
 			GameCamera camera,
 			BlueprintArea area
 	) {
+		Color selectedAreaColor = (area.isConstructionBlocked()) ?
+				areaColorBlocked :
+				areaColorOk;
+
 		int drawX =
 				camera.getTileDrawX(area.getOriginX());
 
@@ -148,9 +154,9 @@ public final class BlueprintAreaHud {
 						drawHeight
 				)
 				.color(
-						areaColor.getRed() / 255.0F,
-						areaColor.getGreen() / 255.0F,
-						areaColor.getBlue() / 255.0F,
+						selectedAreaColor.getRed() / 255.0F,
+						selectedAreaColor.getGreen() / 255.0F,
+						selectedAreaColor.getBlue() / 255.0F,
 						areaOpacity
 				)
 				.draw(

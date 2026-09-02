@@ -109,6 +109,7 @@ public class SettlementBuilders {
         PacketRegistry.registerPacket(PacketBuilderObjectPlaceSound.class);
         PacketRegistry.registerPacket(PacketHardcoreDamageSetting.class);
         PacketRegistry.registerPacket(PacketEraseBlueprintProject.class);
+        PacketRegistry.registerPacket(PacketBlueprintBlockedState.class);
 
         GameEvents.addListener(
                 ServerClientConnectedEvent.class,
