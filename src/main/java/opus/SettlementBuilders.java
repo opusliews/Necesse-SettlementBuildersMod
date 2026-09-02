@@ -3,24 +3,33 @@ package opus;
 import necesse.engine.localization.message.LocalMessage;
 import necesse.engine.modLoader.ModSettings;
 import necesse.engine.modLoader.annotations.ModEntry;
+import necesse.engine.network.PacketReader;
 import necesse.engine.registries.*;
 import necesse.entity.mobs.job.JobType;
+import necesse.inventory.recipe.Ingredient;
+import necesse.inventory.recipe.Recipe;
+import necesse.inventory.recipe.Recipes;
 import opus.armor.BuilderBootsArmorItem;
 import opus.armor.BuilderHatArmorItem;
 import opus.armor.BuilderShirtArmorItem;
 import opus.blueprint.BlueprintAreaLevelData;
 import opus.config.SettlementBuildersSettings;
+import opus.container.BlueprintWorkstationContainer;
 import opus.damage.DamageRepairLevelData;
+import opus.forms.BlueprintWorkstationContainerForm;
 import opus.item.BlueprintItem;
 import opus.jobs.ConstructionLevelJob;
 import opus.jobs.RepairLevelJob;
 import opus.mobs.BuilderHumanMob;
 import opus.network.*;
+import opus.object.BlueprintWorkstationObject;
+import opus.object.BlueprintWorkstationObjectEntity;
 import opus.settler.BuilderSettler;
 
 @ModEntry
 public class SettlementBuilders {
     public static final SettlementBuildersSettings settings = new SettlementBuildersSettings();
+    public static int blueprintWorkstationContainerID;
 
     public ModSettings initSettings() {
         return settings;
@@ -34,6 +43,28 @@ public class SettlementBuilders {
         ItemRegistry.registerItem("buildershirt", new BuilderShirtArmorItem(), 50.0F, true);
         ItemRegistry.registerItem("builderboots", new BuilderBootsArmorItem(), 50.0F, true);
         ItemRegistry.registerItem("blueprintItem", new BlueprintItem(), 10.0F, true);
+        ObjectRegistry.registerObject("blueprintworkstation", new BlueprintWorkstationObject(), 60.0F, true);
+
+
+        blueprintWorkstationContainerID = ContainerRegistry.registerSettlementDependantOEContainer(
+                (client, uniqueSeed, settlement, oe, content) -> new BlueprintWorkstationContainerForm(
+                        client,
+                        new BlueprintWorkstationContainer(
+                                client.getClient(),
+                                uniqueSeed,
+                                settlement,
+                                (BlueprintWorkstationObjectEntity)oe,
+                                new PacketReader(content)
+                        )
+                ),
+                (client, uniqueSeed, settlement, oe, content, serverObject) -> new BlueprintWorkstationContainer(
+                        client,
+                        uniqueSeed,
+                        settlement,
+                        (BlueprintWorkstationObjectEntity)oe,
+                        new PacketReader(content)
+                )
+        );
 
         LevelDataRegistry.registerLevelData(BlueprintAreaLevelData.managerKey, BlueprintAreaLevelData.class);
         LevelDataRegistry.registerLevelData(DamageRepairLevelData.managerKey, DamageRepairLevelData.class);
@@ -71,5 +102,28 @@ public class SettlementBuilders {
         PacketRegistry.registerPacket(PacketBuilderTilePlaceSound.class);
         PacketRegistry.registerPacket(PacketBuilderObjectPlaceSound.class);
         PacketRegistry.registerPacket(PacketHardcoreDamageSetting.class);
+    }
+
+    public void postInit() {
+        Recipes.registerModRecipe(new Recipe(
+                "blueprintItem",
+                1,
+                RecipeTechRegistry.WORKSTATION,
+                new Ingredient[]{
+                        new Ingredient("stackofpaper", 1),
+                        new Ingredient("quillandparchment", 1)
+                }
+        ));
+
+        Recipes.registerModRecipe(new Recipe(
+                "blueprintworkstation",
+                1,
+                RecipeTechRegistry.WORKSTATION,
+                new Ingredient[]{
+                        new Ingredient("anylog", 15),
+                        new Ingredient("tungstenbar", 3),
+                        new Ingredient("stackofpaper", 1)
+                }
+        ));
     }
 }

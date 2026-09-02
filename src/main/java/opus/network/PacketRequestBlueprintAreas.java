@@ -30,7 +30,6 @@ public class PacketRequestBlueprintAreas extends Packet {
 
 		BlueprintAreaManager manager = BlueprintAreaManager.get(level);
 
-		// TODO: Move this from PacketRequestBlueprintAreas into a more appropriate location
 		client.sendPacket(new PacketHardcoreDamageSetting(HardcoreDamage.isServerEnabled()));
 		client.sendPacket(
 			new PacketSyncBlueprintAreas(manager)

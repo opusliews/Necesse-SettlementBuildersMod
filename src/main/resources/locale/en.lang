@@ -31,6 +31,9 @@ buildershirt=Builder Shirt
 builderboots=Builder Boots
 blueprintItem=Blueprint
 
+[object]
+blueprintworkstation=Blueprint Workstation
+
 [controls]
 openbuilderform=Open Builder Form
 

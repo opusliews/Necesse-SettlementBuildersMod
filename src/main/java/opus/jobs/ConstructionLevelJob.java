@@ -1071,7 +1071,7 @@ public class ConstructionLevelJob extends TileLevelJob {
 				&& area.findFirstTileTarget(job.getLevel()) == null
 				&& area.findFirstObjectTarget(job.getLevel()) == null) {
 			job.beginBlueprintCompletion(job.getLevel(), area);
-;
+
 			String message =
 					GameColor.GREEN.getColorCode()
 							+ Localization.translate("jobs", "constructionalreadycomplete");

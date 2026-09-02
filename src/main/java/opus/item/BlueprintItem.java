@@ -158,16 +158,30 @@ public class BlueprintItem extends Item implements ItemInteractAction, Placeable
 		String name,
 		BlueprintData blueprintData
 	) {
-		item.getGndData().setString(blueprintNameKey, name);
+		setBlueprintName(item, name);
+		setBlueprintData(item, blueprintData);
+	}
+
+	public void setBlueprintName(InventoryItem item, String name) {
+		item.getGndData().setString(blueprintNameKey, name == null ? "" : name);
+	}
+
+	public void setBlueprintData(InventoryItem item, BlueprintData blueprintData) {
 		item.getGndData().setString(
-			blueprintDataKey,
-			blueprintData.toJson()
+				blueprintDataKey,
+				blueprintData == null ? "" : blueprintData.toJson()
 		);
+		setCachedBlueprintData(item, blueprintData);
+	}
+
+	public String getBlueprintJson(InventoryItem item) {
+		String json = item.getGndData().getString(blueprintDataKey);
+		return json == null ? "" : json;
 	}
 
 	public void clearBlueprint(InventoryItem item) {
-		item.getGndData().setString(blueprintNameKey, "");
-		item.getGndData().setString(blueprintDataKey, "");
+		setBlueprintName(item, "");
+		setBlueprintData(item, null);
 	}
 
 	public static void frameTick(MainGame mainGame, TickManager tickManager, GameWindow gameWindow) {
@@ -247,7 +261,7 @@ public class BlueprintItem extends Item implements ItemInteractAction, Placeable
 		);
 	}
 
-	private String getRawBlueprintName(InventoryItem item) {
+	public String getRawBlueprintName(InventoryItem item) {
 		String name = item.getGndData().getString(blueprintNameKey);
 
 		return name == null ? "" : name;
