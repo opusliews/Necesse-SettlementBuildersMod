@@ -25,14 +25,10 @@ public class WoodWeatheringLevelData extends LevelData implements
 	public static final String managerKey = "opuswoodweathering";
 
 	private static final long checkInterval = 10000L;
-//	private static final long normalMinExposure = 15L * 60L * 1000L;
-//	private static final long normalMaxExposure = 25L * 60L * 1000L;
-		private static final long normalMinExposure = 60L * 1000L;
-		private static final long normalMaxExposure = 80L * 1000L;
-//	private static final long wallMinExposure = 110L * 60L * 1000L;
-//	private static final long wallMaxExposure = 130L * 60L * 1000L;
-	private static final long wallMinExposure = 60L * 1000L;
-	private static final long wallMaxExposure = 80L * 1000L;
+	private static final long normalMinExposure = 15L * 60L * 1000L;
+	private static final long normalMaxExposure = 25L * 60L * 1000L;
+	private static final long wallMinExposure = 45L * 60L * 1000L;
+	private static final long wallMaxExposure = 75L * 60L * 1000L;
 	private static final float damageFraction = 0.60F;
 	private static final long damageDelayMin = 0L;
 	private static final long damageDelayMax = 30000L;
@@ -358,6 +354,12 @@ public class WoodWeatheringLevelData extends LevelData implements
 			"dryadlogbench",
 			"bamboologbench"
 	));
+
+	public static boolean isWeatherableFence(GameObject object) {
+		return object != null
+				&& object.isFence
+				&& explicitWoodObjects.contains(object.getStringID());
+	}
 
 	private boolean isWeatherableWood(GameObject object) {
 		if (object == null || object.getID() == 0 || object.objectHealth <= 0) {

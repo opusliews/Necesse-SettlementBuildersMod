@@ -1,7 +1,7 @@
 package opus.logging;
 
 public final class Logging {
-	public static boolean logEnabled = true;
+	public static boolean logEnabled = false;
 
 	private Logging() {
 	}

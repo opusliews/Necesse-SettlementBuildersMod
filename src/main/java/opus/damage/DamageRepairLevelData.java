@@ -15,14 +15,19 @@ import opus.jobs.RepairLevelJob;
 import opus.logging.Logging;
 
 import java.awt.*;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 public class DamageRepairLevelData extends LevelData implements RegionLoadedListenerEntityComponent {
 	public static final String managerKey = "opushardcoredamage";
 	public static final long repairDebounceTime = 10000L;
 	private static final long pendingCheckInterval = 1000L;
+	private static final int fenceRepairBatchSize = 20;
 
 	private final Set<Long> pendingRepairs = new HashSet<>();
 	private long nextPendingCheckTime;
@@ -174,6 +179,136 @@ public class DamageRepairLevelData extends LevelData implements RegionLoadedList
 	}
 
 	public static void repairDamage(Level level, int tileX, int tileY) {
+		if (hasWeatherableFenceDamage(level, tileX, tileY)) {
+			repairFenceBatch(level, tileX, tileY);
+			return;
+		}
+
+		repairSingleDamage(level, tileX, tileY);
+	}
+
+	private static void repairFenceBatch(Level level, int startX, int startY) {
+		ArrayDeque<Point> open = new ArrayDeque<>();
+		Set<Long> visited = new HashSet<>();
+		List<Point> damagedFences = new ArrayList<>();
+
+		open.add(new Point(startX, startY));
+
+		while (!open.isEmpty()) {
+			Point current = open.removeFirst();
+			long currentKey = GameMath.getUniqueLongKey(current.x, current.y);
+
+			if (!visited.add(currentKey)) {
+				continue;
+			}
+
+			if (!hasWeatherableFence(level, current.x, current.y)) {
+				continue;
+			}
+
+			if (hasWeatherableFenceDamage(level, current.x, current.y)) {
+				damagedFences.add(current);
+
+				if (damagedFences.size() >= fenceRepairBatchSize) {
+					break;
+				}
+			}
+
+			addConnectedFence(level, open, visited, current.x - 1, current.y);
+			addConnectedFence(level, open, visited, current.x + 1, current.y);
+			addConnectedFence(level, open, visited, current.x, current.y - 1);
+			addConnectedFence(level, open, visited, current.x, current.y + 1);
+		}
+
+		for (Point fence : damagedFences) {
+			repairSingleDamage(level, fence.x, fence.y);
+			removeRepairTracking(level, fence.x, fence.y);
+		}
+
+		Logging.logMessage(
+				"Builder fence repair batch repaired "
+						+ damagedFences.size()
+						+ " fences starting at "
+						+ startX
+						+ ", "
+						+ startY
+		);
+	}
+
+	private static void addConnectedFence(
+			Level level,
+			ArrayDeque<Point> open,
+			Set<Long> visited,
+			int tileX,
+			int tileY
+	) {
+		long key = GameMath.getUniqueLongKey(tileX, tileY);
+
+		if (visited.contains(key) || !hasWeatherableFence(level, tileX, tileY)) {
+			return;
+		}
+
+		open.addLast(new Point(tileX, tileY));
+	}
+
+	private static boolean hasWeatherableFence(Level level, int tileX, int tileY) {
+		for (int layerID = 0; layerID < necesse.engine.registries.ObjectLayerRegistry.getTotalLayers(); layerID++) {
+			GameObject object = level.getObject(layerID, tileX, tileY);
+
+			if (WoodWeatheringLevelData.isWeatherableFence(object)) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	private static boolean hasWeatherableFenceDamage(Level level, int tileX, int tileY) {
+		DamagedObjectEntity damagedEntity = level.entityManager.getDamagedObjectEntity(tileX, tileY);
+
+		if (damagedEntity == null || damagedEntity.removed() || damagedEntity.shouldRemove()) {
+			return false;
+		}
+
+		int layers = Math.min(
+				damagedEntity.objectDamage.length,
+				necesse.engine.registries.ObjectLayerRegistry.getTotalLayers()
+		);
+
+		for (int layerID = 0; layerID < layers; layerID++) {
+			if (damagedEntity.objectDamage[layerID] <= 0) {
+				continue;
+			}
+
+			GameObject object = level.getObject(layerID, tileX, tileY);
+
+			if (WoodWeatheringLevelData.isWeatherableFence(object)) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	private static void removeRepairTracking(Level level, int tileX, int tileY) {
+		DamageRepairLevelData data = get(level, false);
+
+		if (data != null) {
+			data.pendingRepairs.remove(GameMath.getUniqueLongKey(tileX, tileY));
+		}
+
+		List<RepairLevelJob> jobs = level.jobsLayer
+				.streamJobsInTile(tileX, tileY)
+				.filter(job -> job instanceof RepairLevelJob)
+				.map(job -> (RepairLevelJob)job)
+				.collect(Collectors.toList());
+
+		for (RepairLevelJob job : jobs) {
+			job.remove();
+		}
+	}
+
+	private static void repairSingleDamage(Level level, int tileX, int tileY) {
 		Set<Long> affectedTiles = new HashSet<>();
 		boolean repairedObjectDamage = false;
 		affectedTiles.add(GameMath.getUniqueLongKey(tileX, tileY));
