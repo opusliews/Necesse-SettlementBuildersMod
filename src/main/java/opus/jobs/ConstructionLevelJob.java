@@ -108,6 +108,10 @@ public class ConstructionLevelJob extends TileLevelJob {
 		return projectExists;
 	}
 
+	public String getBlueprintAreaUniqueID() {
+		return blueprintAreaUniqueID;
+	}
+
 	public ActiveJob getActiveJob(
 			EntityJobWorker worker,
 			JobTypeHandler.TypePriority priority,

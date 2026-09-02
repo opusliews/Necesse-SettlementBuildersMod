@@ -28,7 +28,8 @@ public class BuilderHumanMob extends HumanShop {
         this.shop.addSellingItem("builderhat", new SellingShopItem()).setStaticPriceBasedOnHappiness(75, 150, 20);
         this.shop.addSellingItem("buildershirt", new SellingShopItem()).setStaticPriceBasedOnHappiness(75, 150, 20);
         this.shop.addSellingItem("builderboots", new SellingShopItem()).setStaticPriceBasedOnHappiness(75, 150, 20);
-        this.shop.addSellingItem("blueprintItem", new SellingShopItem()).setStaticPriceBasedOnHappiness(100, 200, 20);
+        this.shop.addSellingItem("blueprintItem", new SellingShopItem()).setStaticPriceBasedOnHappiness(75, 125, 20);
+        this.shop.addSellingItem("projecteraser", new SellingShopItem()).setStaticPriceBasedOnHappiness(75, 150, 20);
     }
 
     @Override

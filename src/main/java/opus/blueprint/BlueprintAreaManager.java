@@ -71,6 +71,16 @@ public class BlueprintAreaManager {
 		return areas.get(uniqueID);
 	}
 
+	public BlueprintArea getAreaAtTile(int tileX, int tileY) {
+		for (BlueprintArea area : areas.values()) {
+			if (area.getTileBounds().contains(tileX, tileY)) {
+				return area;
+			}
+		}
+
+		return null;
+	}
+
 	public boolean removeArea(String uniqueID) {
 		return areas.remove(uniqueID) != null;
 	}

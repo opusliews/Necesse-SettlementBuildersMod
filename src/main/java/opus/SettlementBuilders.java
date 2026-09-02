@@ -22,6 +22,7 @@ import opus.damage.DamageRepairLevelData;
 import opus.damage.HardcoreDamage;
 import opus.forms.BlueprintWorkstationContainerForm;
 import opus.item.BlueprintItem;
+import opus.item.ProjectEraserItem;
 import opus.jobs.ConstructionLevelJob;
 import opus.jobs.RepairLevelJob;
 import opus.mobs.BuilderHumanMob;
@@ -46,8 +47,9 @@ public class SettlementBuilders {
         ItemRegistry.registerItem("builderhat", new BuilderHatArmorItem(), 50.0F, true);
         ItemRegistry.registerItem("buildershirt", new BuilderShirtArmorItem(), 50.0F, true);
         ItemRegistry.registerItem("builderboots", new BuilderBootsArmorItem(), 50.0F, true);
-        ItemRegistry.registerItem("blueprintItem", new BlueprintItem(), 10.0F, true);
-        ObjectRegistry.registerObject("blueprintworkstation", new BlueprintWorkstationObject(), 60.0F, true);
+        ItemRegistry.registerItem("blueprintItem", new BlueprintItem(), 25.0F, true);
+        ItemRegistry.registerItem("projecteraser", new ProjectEraserItem(), 30.0F, true);
+        ObjectRegistry.registerObject("blueprintworkstation", new BlueprintWorkstationObject(), 100.0F, true);
 
 
         blueprintWorkstationContainerID = ContainerRegistry.registerSettlementDependantOEContainer(
@@ -106,6 +108,7 @@ public class SettlementBuilders {
         PacketRegistry.registerPacket(PacketBuilderTilePlaceSound.class);
         PacketRegistry.registerPacket(PacketBuilderObjectPlaceSound.class);
         PacketRegistry.registerPacket(PacketHardcoreDamageSetting.class);
+        PacketRegistry.registerPacket(PacketEraseBlueprintProject.class);
 
         GameEvents.addListener(
                 ServerClientConnectedEvent.class,
@@ -141,6 +144,45 @@ public class SettlementBuilders {
                         new Ingredient("anylog", 15),
                         new Ingredient("tungstenbar", 3),
                         new Ingredient("stackofpaper", 1)
+                }
+        ));
+
+        Recipes.registerModRecipe(new Recipe(
+                "builderhat",
+                1,
+                RecipeTechRegistry.WORKSTATION,
+                new Ingredient[]{
+                        new Ingredient("wool", 12),
+                        new Ingredient("ironbar", 1)
+                }
+        ));
+
+        Recipes.registerModRecipe(new Recipe(
+                "buildershirt",
+                1,
+                RecipeTechRegistry.WORKSTATION,
+                new Ingredient[]{
+                        new Ingredient("wool", 16)
+                }
+        ));
+
+        Recipes.registerModRecipe(new Recipe(
+                "builderboots",
+                1,
+                RecipeTechRegistry.WORKSTATION,
+                new Ingredient[]{
+                        new Ingredient("wool", 8),
+                        new Ingredient("leather", 1)
+                }
+        ));
+
+        Recipes.registerModRecipe(new Recipe(
+                "projecteraser",
+                1,
+                RecipeTechRegistry.WORKSTATION,
+                new Ingredient[]{
+                        new Ingredient("quillandparchment", 1),
+                        new Ingredient("ironbar", 1)
                 }
         ));
     }
