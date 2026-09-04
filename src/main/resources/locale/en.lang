@@ -40,6 +40,8 @@ openbuilderform=Open Builder Form
 
 [ui]
 blueprintselectarea=Create blueprint zone
+builderstartroadrepairs=Please do repairs on the road
+builderstoproadrepairs=Please stop doing repairs on the road
 
 [itemtooltip]
 blueprintemptytip=Click [input=mouse2] to create a new blueprint

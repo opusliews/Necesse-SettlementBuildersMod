@@ -125,6 +125,7 @@ public class SettlementBuilders {
         PacketRegistry.registerPacket(PacketHardcoreDamageSetting.class);
         PacketRegistry.registerPacket(PacketEraseBlueprintProject.class);
         PacketRegistry.registerPacket(PacketBlueprintBlockedState.class);
+        PacketRegistry.registerPacket(PacketBuilderRoadRepairToggle.class);
 
         GameEvents.addListener(
                 ServerClientConnectedEvent.class,

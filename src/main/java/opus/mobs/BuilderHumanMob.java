@@ -2,9 +2,12 @@ package opus.mobs;
 
 import necesse.engine.expeditions.SettlerExpedition;
 import necesse.engine.localization.message.GameMessage;
+import necesse.engine.network.PacketReader;
+import necesse.engine.network.PacketWriter;
 import necesse.engine.network.server.ServerClient;
 import necesse.engine.registries.SettlerRegistry;
 import necesse.engine.save.LoadData;
+import necesse.engine.save.SaveData;
 import necesse.engine.util.GameRandom;
 import necesse.engine.world.WorldFile;
 import necesse.engine.world.worldData.SettlementsWorldData;
@@ -24,6 +27,7 @@ import java.util.stream.Stream;
 public class BuilderHumanMob extends HumanShop {
     public static final int maxWorkInventoryStacks = 5;
     private static final int buildersPerRecruitTier = 3;
+    private boolean repairOnRoad;
 
     private static final String[][] recruitBarTiers = {
             {"copperbar", "ironbar", "goldbar"},
@@ -243,6 +247,38 @@ public class BuilderHumanMob extends HumanShop {
 
     private String getRecruitCrystalID(GameRandom random) {
         return recruitCrystals[random.nextInt(recruitCrystals.length)];
+    }
+
+    public boolean isRepairOnRoad() {
+        return repairOnRoad;
+    }
+
+    public void setRepairOnRoad(boolean repairOnRoad) {
+        this.repairOnRoad = repairOnRoad;
+    }
+
+    @Override
+    public void addSaveData(SaveData save) {
+        super.addSaveData(save);
+        save.addBoolean("repairOnRoad", repairOnRoad);
+    }
+
+    @Override
+    public void applyLoadData(LoadData save) {
+        super.applyLoadData(save);
+        repairOnRoad = save.getBoolean("repairOnRoad", false, false);
+    }
+
+    @Override
+    public void setupSpawnPacket(PacketWriter writer) {
+        super.setupSpawnPacket(writer);
+        writer.putNextBoolean(repairOnRoad);
+    }
+
+    @Override
+    public void applySpawnPacket(PacketReader reader) {
+        super.applySpawnPacket(reader);
+        repairOnRoad = reader.getNextBoolean();
     }
 
     // Inventory overrides, to remove broker value limits to builder inventory
