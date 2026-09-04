@@ -6,6 +6,7 @@ import necesse.engine.save.LoadData;
 import necesse.engine.save.SaveData;
 import necesse.engine.util.GameRandom;
 import necesse.entity.AbstractDamageResult;
+import necesse.entity.DamagedObjectEntity;
 import necesse.entity.manager.ObjectPlacedListenerEntityComponent;
 import necesse.entity.manager.RegionLoadedListenerEntityComponent;
 import necesse.entity.manager.TilePlacedListenerEntityComponent;
@@ -36,6 +37,8 @@ public class WoodWeatheringLevelData extends LevelData implements
 	private static final float damageFraction = 0.60F;
 	private static final long damageDelayMin = 0L;
 	private static final long damageDelayMax = 30000L;
+
+	private static final double estimatedRainFraction = 330.0 / 1830.0;
 
 	private final Map<String, WeatheringEntry> entries = new HashMap<>();
 	private long nextCheckTime;
@@ -76,6 +79,7 @@ public class WoodWeatheringLevelData extends LevelData implements
 		}
 
 		scanRegion(region);
+		applyEstimatedUnloadedWeathering(region);
 	}
 
 	@Override
@@ -219,6 +223,7 @@ public class WoodWeatheringLevelData extends LevelData implements
 			entrySave.addLong("accumulatedRainExposure", entry.accumulatedRainExposure);
 			entrySave.addLong("requiredRainExposure", entry.requiredRainExposure);
 			entrySave.addLong("pendingDamageTime", entry.pendingDamageTime);
+			entrySave.addLong("lastActiveWorldTime", level.getTime());
 			save.addSaveData(entrySave);
 		}
 	}
@@ -247,13 +252,124 @@ public class WoodWeatheringLevelData extends LevelData implements
 					entryLoad.getLong("pendingDamageTime", 0L, false)
 			);
 
-			// DEBUG: reroll/reset on load while testing accelerated timings.
-			entry.requiredRainExposure = rollExposureThreshold(entry);
-			entry.accumulatedRainExposure = 0L;
-			entry.pendingDamageTime = 0L;
+			if (entry.requiredRainExposure <= 0L) {
+				entry.requiredRainExposure = rollExposureThreshold(entry);
+			}
+
+			entry.lastActiveWorldTime = entryLoad.getLong("lastActiveWorldTime", 0L, false);
 
 			entries.put(getEntryKey(entry), entry);
 		}
+	}
+
+	private void applyEstimatedUnloadedWeathering(Region region) {
+		long currentTime = level.getTime();
+		Iterator<WeatheringEntry> iterator = entries.values().iterator();
+
+		while (iterator.hasNext()) {
+			WeatheringEntry entry = iterator.next();
+
+			if (!isInsideRegion(region, entry.tileX, entry.tileY)
+					|| entry.lastActiveWorldTime <= 0L
+					|| entry.pendingDamageTime > 0L
+					|| !isStillTrackedEntry(entry)
+					|| !isExposedToRain(entry)) {
+				continue;
+			}
+
+			long unloadedTime = Math.max(0L, currentTime - entry.lastActiveWorldTime);
+			entry.lastActiveWorldTime = 0L;
+
+			if (unloadedTime <= 0L) {
+				continue;
+			}
+
+			entry.accumulatedRainExposure += (long)(unloadedTime * estimatedRainFraction);
+
+			if (entry.accumulatedRainExposure < entry.requiredRainExposure) {
+				continue;
+			}
+
+			if (applyUnloadedWeatheringStage(entry)) {
+				iterator.remove();
+			}
+		}
+	}
+
+	private boolean applyUnloadedWeatheringStage(WeatheringEntry entry) {
+		boolean alreadyDamaged = hasEntryDamage(entry);
+		int damage = alreadyDamaged
+				? getEntryHealth(entry)
+				: Math.max(1, (int)Math.ceil(getEntryHealth(entry) * damageFraction));
+
+		AbstractDamageResult result;
+
+		if (entry.isTile) {
+			result = level.entityManager.doTileDamage(
+					entry.tileX,
+					entry.tileY,
+					damage,
+					Float.MAX_VALUE,
+					null,
+					null,
+					true,
+					entry.tileX * 32 + 16,
+					entry.tileY * 32 + 16
+			);
+		} else {
+			result = level.entityManager.doObjectDamage(
+					entry.objectLayerID,
+					entry.tileX,
+					entry.tileY,
+					damage,
+					Float.MAX_VALUE,
+					null,
+					null,
+					true,
+					entry.tileX * 32 + 16,
+					entry.tileY * 32 + 16
+			);
+		}
+
+		if (result != null && result.destroyed) {
+			Logging.logMessage(
+					"Estimated unloaded rain weathering destroyed "
+							+ entry.materialID
+							+ " at "
+							+ entry.tileX
+							+ ", "
+							+ entry.tileY
+			);
+			return true;
+		}
+
+		Logging.logMessage(
+				"Estimated unloaded rain weathering damaged "
+						+ entry.materialID
+						+ " at "
+						+ entry.tileX
+						+ ", "
+						+ entry.tileY
+		);
+
+		entry.accumulatedRainExposure = 0L;
+		entry.requiredRainExposure = rollExposureThreshold(entry);
+		entry.pendingDamageTime = 0L;
+		return false;
+	}
+
+	private boolean hasEntryDamage(WeatheringEntry entry) {
+		DamagedObjectEntity damagedEntity = level.entityManager.getDamagedObjectEntity(entry.tileX, entry.tileY);
+
+		if (damagedEntity == null || damagedEntity.removed() || damagedEntity.shouldRemove()) {
+			return false;
+		}
+
+		if (entry.isTile) {
+			return damagedEntity.tileDamage > 0;
+		}
+
+		return damagedEntity.getObjectDamage(entry.objectLayerID) > 0;
 	}
 
 	@Override
@@ -371,7 +487,7 @@ public class WoodWeatheringLevelData extends LevelData implements
 
 	private boolean isExposedToRain(WeatheringEntry entry) {
 		if (entry.isTile) {
-			return isOutsideOrBeyondLevel(entry.tileX, entry.tileY);
+			return isExposedToPrecipitation(entry.tileX, entry.tileY);
 		}
 
 		GameObject object = level.getObject(entry.objectLayerID, entry.tileX, entry.tileY);
@@ -382,10 +498,10 @@ public class WoodWeatheringLevelData extends LevelData implements
 		if (object.isWall) {
 			for (int x = footprint.x; x < footprint.x + footprint.width; x++) {
 				for (int y = footprint.y; y < footprint.y + footprint.height; y++) {
-					if (isOutsideOrBeyondLevel(x - 1, y)
-							|| isOutsideOrBeyondLevel(x + 1, y)
-							|| isOutsideOrBeyondLevel(x, y - 1)
-							|| isOutsideOrBeyondLevel(x, y + 1)) {
+					if (isExposedToPrecipitation(x - 1, y)
+							|| isExposedToPrecipitation(x + 1, y)
+							|| isExposedToPrecipitation(x, y - 1)
+							|| isExposedToPrecipitation(x, y + 1)) {
 						return true;
 					}
 				}
@@ -396,7 +512,7 @@ public class WoodWeatheringLevelData extends LevelData implements
 
 		for (int x = footprint.x; x < footprint.x + footprint.width; x++) {
 			for (int y = footprint.y; y < footprint.y + footprint.height; y++) {
-				if (isOutsideOrBeyondLevel(x, y)) {
+				if (isExposedToPrecipitation(x, y)) {
 					return true;
 				}
 			}
@@ -405,8 +521,13 @@ public class WoodWeatheringLevelData extends LevelData implements
 		return false;
 	}
 
-	private boolean isOutsideOrBeyondLevel(int tileX, int tileY) {
-		return !level.isTileWithinBounds(tileX, tileY) || level.isOutside(tileX, tileY);
+	private boolean isExposedToPrecipitation(int tileX, int tileY) {
+		if (!level.isTileWithinBounds(tileX, tileY)) {
+			return true;
+		}
+
+		return level.isOutside(tileX, tileY)
+				&& level.getBiome(tileX, tileY).canRain(level);
 	}
 
 	private int getEntryHealth(WeatheringEntry entry) {
@@ -472,6 +593,7 @@ public class WoodWeatheringLevelData extends LevelData implements
 		private long accumulatedRainExposure;
 		private long requiredRainExposure;
 		private long pendingDamageTime;
+		private long lastActiveWorldTime;
 
 		private WeatheringEntry(
 				int tileX,
@@ -491,6 +613,7 @@ public class WoodWeatheringLevelData extends LevelData implements
 			this.accumulatedRainExposure = accumulatedRainExposure;
 			this.requiredRainExposure = requiredRainExposure;
 			this.pendingDamageTime = pendingDamageTime;
+			this.lastActiveWorldTime = 0;
 		}
 	}
 }
