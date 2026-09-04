@@ -5,10 +5,12 @@ import necesse.engine.registries.ObjectLayerRegistry;
 import necesse.engine.save.LoadData;
 import necesse.engine.save.SaveData;
 import necesse.engine.util.GameRandom;
-import necesse.entity.ObjectDamageResult;
+import necesse.entity.AbstractDamageResult;
 import necesse.entity.manager.ObjectPlacedListenerEntityComponent;
 import necesse.entity.manager.RegionLoadedListenerEntityComponent;
+import necesse.entity.manager.TilePlacedListenerEntityComponent;
 import necesse.level.gameObject.GameObject;
+import necesse.level.gameTile.GameTile;
 import necesse.level.maps.Level;
 import necesse.level.maps.levelData.LevelData;
 import necesse.level.maps.levelData.RegionLevelDataComponent;
@@ -16,25 +18,28 @@ import necesse.level.maps.regionSystem.Region;
 import opus.logging.Logging;
 
 import java.awt.*;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 
 public class WoodWeatheringLevelData extends LevelData implements
 		RegionLoadedListenerEntityComponent,
 		RegionLevelDataComponent,
-		ObjectPlacedListenerEntityComponent {
+		ObjectPlacedListenerEntityComponent,
+		TilePlacedListenerEntityComponent {
 	public static final String managerKey = "opuswoodweathering";
 
 	private static final long checkInterval = 10000L;
-	private static final long normalMinExposure = 15L * 60L * 1000L;
-	private static final long normalMaxExposure = 25L * 60L * 1000L;
-	private static final long wallMinExposure = 45L * 60L * 1000L;
-	private static final long wallMaxExposure = 75L * 60L * 1000L;
+	private static final long baseMinExposure = 15L * 60L * 1000L;
+	 private static final long baseMaxExposure = 25L * 60L * 1000L;
+	private static final int wallTimeMultiplier = 3;
 	private static final float damageFraction = 0.60F;
 	private static final long damageDelayMin = 0L;
 	private static final long damageDelayMax = 30000L;
 
 	private final Map<String, WeatheringEntry> entries = new HashMap<>();
 	private long nextCheckTime;
+	private long lastWeatherCheckTime;
 
 	public static WoodWeatheringLevelData get(Level level, boolean createNewIfNull) {
 		if (level == null) {
@@ -42,7 +47,6 @@ public class WoodWeatheringLevelData extends LevelData implements
 		}
 
 		LevelData existing = level.getLevelData(managerKey);
-
 		if (existing instanceof WoodWeatheringLevelData) {
 			return (WoodWeatheringLevelData)existing;
 		}
@@ -86,51 +90,55 @@ public class WoodWeatheringLevelData extends LevelData implements
 	}
 
 	@Override
+	public void onTilePlaced(GameTile tile, int tileX, int tileY, ServerClient client) {
+		if (!isServer() || !HardcoreDamage.isEnabled(level)) {
+			return;
+		}
+
+		registerTile(level.getTile(tileX, tileY), tileX, tileY, true);
+	}
+
+	@Override
 	public void tick() {
-		if (!isServer() || !HardcoreDamage.isEnabled(level) || entries.isEmpty()) {
+		if (!isServer() || !HardcoreDamage.isEnabled(level)) {
 			return;
 		}
 
 		long currentTime = level.getTime();
 
-		processPendingDamage(currentTime);
+		if (!entries.isEmpty()) {
+			processPendingDamage(currentTime);
+		}
 
 		if (currentTime < nextCheckTime) {
 			return;
 		}
 
+		long elapsed = lastWeatherCheckTime == 0L ? 0L : currentTime - lastWeatherCheckTime;
+		lastWeatherCheckTime = currentTime;
 		nextCheckTime = currentTime + checkInterval;
+
+		if (entries.isEmpty()) {
+			return;
+		}
 
 		if (!level.weatherLayer.isRaining()) {
 			return;
 		}
 
 		for (WeatheringEntry entry : entries.values()) {
-			GameObject object = level.getObject(entry.objectLayerID, entry.tileX, entry.tileY);
-
-			if (!isStillTrackedObject(object, entry)) {
+			if (!isStillTrackedEntry(entry) || entry.pendingDamageTime > 0L || !isExposedToRain(entry)) {
 				continue;
 			}
 
-			if (entry.pendingDamageTime > 0L) {
-				continue;
-			}
-
-			if (!isExposedToRain(object, entry.objectLayerID, entry.tileX, entry.tileY)) {
-				continue;
-			}
-
-			entry.accumulatedRainExposure += checkInterval;
+			entry.accumulatedRainExposure += elapsed;
 
 			if (entry.accumulatedRainExposure >= entry.requiredRainExposure) {
 				entry.pendingDamageTime = currentTime + rollDamageDelay();
 			}
 		}
 
-		entries.values().removeIf(entry -> {
-			GameObject object = level.getObject(entry.objectLayerID, entry.tileX, entry.tileY);
-			return !isStillTrackedObject(object, entry);
-		});
+		entries.values().removeIf(entry -> !isStillTrackedEntry(entry));
 	}
 
 	private void processPendingDamage(long currentTime) {
@@ -138,67 +146,61 @@ public class WoodWeatheringLevelData extends LevelData implements
 
 		while (iterator.hasNext()) {
 			WeatheringEntry entry = iterator.next();
-
 			if (entry.pendingDamageTime <= 0L || currentTime < entry.pendingDamageTime) {
 				continue;
 			}
 
-			GameObject object = level.getObject(entry.objectLayerID, entry.tileX, entry.tileY);
-
-			if (!isStillTrackedObject(object, entry)) {
+			if (!isStillTrackedEntry(entry)) {
 				iterator.remove();
 				continue;
 			}
 
-			int damage = Math.max(1, (int)Math.ceil(object.objectHealth * damageFraction));
+			int health = getEntryHealth(entry);
+			int damage = Math.max(1, (int)Math.ceil(health * damageFraction));
+			AbstractDamageResult result;
 
-			ObjectDamageResult result = level.entityManager.doObjectDamage(
-					entry.objectLayerID,
-					entry.tileX,
-					entry.tileY,
-					damage,
-					Float.MAX_VALUE,
-					null,
-					null,
-					true,
-					entry.tileX * 32 + 16,
-					entry.tileY * 32 + 16
-			);
+			if (entry.isTile) {
+				result = level.entityManager.doTileDamage(
+						entry.tileX,
+						entry.tileY,
+						damage,
+						Float.MAX_VALUE,
+						null,
+						null,
+						true,
+						entry.tileX * 32 + 16,
+						entry.tileY * 32 + 16
+				);
+			} else {
+				result = level.entityManager.doObjectDamage(
+						entry.objectLayerID,
+						entry.tileX,
+						entry.tileY,
+						damage,
+						Float.MAX_VALUE,
+						null,
+						null,
+						true,
+						entry.tileX * 32 + 16,
+						entry.tileY * 32 + 16
+				);
+			}
 
 			if (result != null && result.destroyed) {
-				Logging.logMessage(
-						"Rain weathering destroyed "
-								+ entry.objectID
-								+ " at "
-								+ entry.tileX
-								+ ", "
-								+ entry.tileY
-				);
-
+				Logging.logMessage("Rain weathering destroyed " + entry.materialID + " at " + entry.tileX + ", " + entry.tileY);
 				iterator.remove();
 				continue;
 			}
 
-			Logging.logMessage(
-					"Rain weathering damaged "
-							+ entry.objectID
-							+ " at "
-							+ entry.tileX
-							+ ", "
-							+ entry.tileY
-							+ " for "
-							+ damage
-			);
-
+			Logging.logMessage("Rain weathering damaged " + entry.materialID + " at " + entry.tileX + ", " + entry.tileY + " for " + damage);
 			entry.accumulatedRainExposure = 0L;
-			entry.requiredRainExposure = rollExposureThreshold(object.isWall);
+			entry.requiredRainExposure = rollExposureThreshold(entry);
 			entry.pendingDamageTime = 0L;
 		}
 	}
 
 	private long rollDamageDelay() {
-		return damageDelayMin
-				+ (long)(GameRandom.globalRandom.nextDouble() * (damageDelayMax - damageDelayMin + 1L));
+		return damageDelayMin + (long)(GameRandom.globalRandom.nextDouble() * (damageDelayMax - damageDelayMin + 1L));
 	}
 
 	@Override
@@ -212,7 +214,8 @@ public class WoodWeatheringLevelData extends LevelData implements
 			entrySave.addInt("tileX", entry.tileX);
 			entrySave.addInt("tileY", entry.tileY);
 			entrySave.addInt("objectLayerID", entry.objectLayerID);
-			entrySave.addUnsafeString("objectID", entry.objectID);
+			entrySave.addUnsafeString("objectID", entry.materialID);
+			entrySave.addBoolean("isTile", entry.isTile);
 			entrySave.addLong("accumulatedRainExposure", entry.accumulatedRainExposure);
 			entrySave.addLong("requiredRainExposure", entry.requiredRainExposure);
 			entrySave.addLong("pendingDamageTime", entry.pendingDamageTime);
@@ -226,9 +229,10 @@ public class WoodWeatheringLevelData extends LevelData implements
 			int tileX = entryLoad.getInt("tileX");
 			int tileY = entryLoad.getInt("tileY");
 			int objectLayerID = entryLoad.getInt("objectLayerID", 0, false);
-			String objectID = entryLoad.getUnsafeString("objectID", null, false);
+			String materialID = entryLoad.getUnsafeString("objectID", null, false);
+			boolean isTile = entryLoad.getBoolean("isTile", false, false);
 
-			if (objectID == null) {
+			if (materialID == null) {
 				continue;
 			}
 
@@ -236,18 +240,19 @@ public class WoodWeatheringLevelData extends LevelData implements
 					tileX,
 					tileY,
 					objectLayerID,
-					objectID,
+					materialID,
+					isTile,
 					entryLoad.getLong("accumulatedRainExposure", 0L, false),
 					entryLoad.getLong("requiredRainExposure", 0L, false),
 					entryLoad.getLong("pendingDamageTime", 0L, false)
 			);
 
-			if (entry.requiredRainExposure <= 0L) {
-				GameObject object = level.getObject(objectLayerID, tileX, tileY);
-				entry.requiredRainExposure = rollExposureThreshold(object != null && object.isWall);
-			}
+			// DEBUG: reroll/reset on load while testing accelerated timings.
+			entry.requiredRainExposure = rollExposureThreshold(entry);
+			entry.accumulatedRainExposure = 0L;
+			entry.pendingDamageTime = 0L;
 
-			entries.put(getEntryKey(objectLayerID, tileX, tileY), entry);
+			entries.put(getEntryKey(entry), entry);
 		}
 	}
 
@@ -262,37 +267,30 @@ public class WoodWeatheringLevelData extends LevelData implements
 				continue;
 			}
 
-			GameObject object = level.getObject(entry.objectLayerID, entry.tileX, entry.tileY);
 			entry.accumulatedRainExposure = 0L;
-			entry.requiredRainExposure = rollExposureThreshold(object != null && object.isWall);
+			entry.requiredRainExposure = rollExposureThreshold(entry);
 			entry.pendingDamageTime = 0L;
-
-			Logging.logMessage(
-					"Reset rain weathering for "
-							+ entry.objectID
-							+ " at "
-							+ tileX
-							+ ", "
-							+ tileY
-			);
+			Logging.logMessage("Reset rain weathering for " + entry.materialID + " at " + tileX + ", " + tileY);
 		}
 	}
 
 	private void scanRegion(Region region) {
 		for (int x = region.tileXOffset; x < region.tileXOffset + region.tileWidth; x++) {
 			for (int y = region.tileYOffset; y < region.tileYOffset + region.tileHeight; y++) {
+				registerTile(level.getTile(x, y), x, y, false);
+
 				for (Integer layerID : ObjectLayerRegistry.getLayerIDs()) {
-					GameObject object = level.getObject(layerID, x, y);
-					registerObject(object, layerID, x, y, false);
+					registerObject(level.getObject(layerID, x, y), layerID, x, y, false);
 				}
 			}
 		}
 	}
 
 	private void registerObject(GameObject object, int objectLayerID, int tileX, int tileY, boolean resetExisting) {
-		String key = getEntryKey(objectLayerID, tileX, tileY);
+		String key = getObjectEntryKey(objectLayerID, tileX, tileY);
+		WeatheringMaterialTier tier = MaterialWeatheringClassifier.getObjectTier(object);
 
-		if (!isWeatherableWood(object)
+		if (tier == null || !tier.isWeatherable()
 				|| !object.isMultiTileMaster()
 				|| !level.objectLayer.isPlayerPlaced(objectLayerID, tileX, tileY)) {
 			entries.remove(key);
@@ -303,107 +301,83 @@ public class WoodWeatheringLevelData extends LevelData implements
 			return;
 		}
 
-		entries.put(key,
-				new WeatheringEntry(
-						tileX,
-						tileY,
-						objectLayerID,
-						object.getStringID(),
-						0L,
-						rollExposureThreshold(object.isWall),
-						0L
-				)
+		WeatheringEntry entry = new WeatheringEntry(
+				tileX,
+				tileY,
+				objectLayerID,
+				object.getStringID(),
+				false,
+				0L,
+				0L,
+				0L
 		);
+
+		entry.requiredRainExposure = rollExposureThreshold(entry);
+		entries.put(key, entry);
 	}
 
-	private boolean isStillTrackedObject(GameObject object, WeatheringEntry entry) {
-		return isWeatherableWood(object)
+	private void registerTile(GameTile tile, int tileX, int tileY, boolean resetExisting) {
+		String key = getTileEntryKey(tileX, tileY);
+		WeatheringMaterialTier tier = MaterialWeatheringClassifier.getTileTier(tile);
+
+		if (tier == null || !tier.isWeatherable() || !level.tileLayer.isPlayerPlaced(tileX, tileY)) {
+			entries.remove(key);
+			return;
+		}
+
+		if (!resetExisting && entries.containsKey(key)) {
+			return;
+		}
+
+		WeatheringEntry entry = new WeatheringEntry(
+				tileX,
+				tileY,
+				-1,
+				tile.getStringID(),
+				true,
+				0L,
+				0L,
+				0L
+		);
+
+		entry.requiredRainExposure = rollExposureThreshold(entry);
+		entries.put(key, entry);
+	}
+
+	private boolean isStillTrackedEntry(WeatheringEntry entry) {
+		if (entry.isTile) {
+			GameTile tile = level.getTile(entry.tileX, entry.tileY);
+			WeatheringMaterialTier tier = MaterialWeatheringClassifier.getTileTier(tile);
+
+			return tier != null
+					&& tier.isWeatherable()
+					&& tile.getStringID().equals(entry.materialID)
+					&& level.tileLayer.isPlayerPlaced(entry.tileX, entry.tileY);
+		}
+
+		GameObject object = level.getObject(entry.objectLayerID, entry.tileX, entry.tileY);
+		WeatheringMaterialTier tier = MaterialWeatheringClassifier.getObjectTier(object);
+
+		return tier != null
+				&& tier.isWeatherable()
 				&& object.isMultiTileMaster()
-				&& object.getStringID().equals(entry.objectID)
+				&& object.getStringID().equals(entry.materialID)
 				&& level.objectLayer.isPlayerPlaced(entry.objectLayerID, entry.tileX, entry.tileY);
 	}
 
-	private static final Set<String> woodFurnitureCategories = new HashSet<>(Arrays.asList(
-			"oak",
-			"spruce",
-			"pine",
-			"willow",
-			"palm",
-			"maple",
-			"birch",
-			"dryad",
-			"bamboo",
-			"deadwood"
-	));
-
-	private static final Set<String> woodWallPrefixes = new HashSet<>(Arrays.asList(
-			"wood",
-			"pine",
-			"palm",
-			"willow",
-			"dryad",
-			"bamboo"
-	));
-
-	private static final Set<String> explicitWoodObjects = new HashSet<>(Arrays.asList(
-			"woodfence",
-			"woodfencegate",
-			"woodfencegateopen",
-			"sprucelogbench",
-			"willowlogbench",
-			"dryadlogbench",
-			"bamboologbench"
-	));
-
 	public static boolean isWeatherableFence(GameObject object) {
-		return object != null
-				&& object.isFence
-				&& explicitWoodObjects.contains(object.getStringID());
+		return MaterialWeatheringClassifier.isWeatherableFence(object);
 	}
 
-	private boolean isWeatherableWood(GameObject object) {
-		if (object == null || object.getID() == 0 || object.objectHealth <= 0) {
-			return false;
+	private boolean isExposedToRain(WeatheringEntry entry) {
+		if (entry.isTile) {
+			return isOutsideOrBeyondLevel(entry.tileX, entry.tileY);
 		}
 
-		if (isWoodFurniture(object)) {
-			return true;
-		}
-
-		String objectID = object.getStringID();
-
-		if (explicitWoodObjects.contains(objectID)) {
-			return true;
-		}
-
-		for (String prefix : woodWallPrefixes) {
-			if (objectID.equals(prefix + "wall")
-					|| objectID.equals(prefix + "door")
-					|| objectID.equals(prefix + "dooropen")
-					|| objectID.equals(prefix + "doorlocked")
-					|| objectID.equals(prefix + "doorunlocked")
-					|| objectID.equals(prefix + "window")) {
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	private boolean isWoodFurniture(GameObject object) {
-		String[] category = object.itemCategoryTree;
-
-		return category != null
-				&& category.length >= 3
-				&& "objects".equals(category[0])
-				&& "furniture".equals(category[1])
-				&& woodFurnitureCategories.contains(category[2]);
-	}
-
-	private boolean isExposedToRain(GameObject object, int objectLayerID, int tileX, int tileY) {
+		GameObject object = level.getObject(entry.objectLayerID, entry.tileX, entry.tileY);
 		Rectangle footprint = object
-				.getMultiTile(level, objectLayerID, tileX, tileY)
-				.getTileRectangle(tileX, tileY);
+				.getMultiTile(level, entry.objectLayerID, entry.tileX, entry.tileY)
+				.getTileRectangle(entry.tileX, entry.tileY);
 
 		if (object.isWall) {
 			for (int x = footprint.x; x < footprint.x + footprint.width; x++) {
@@ -435,14 +409,51 @@ public class WoodWeatheringLevelData extends LevelData implements
 		return !level.isTileWithinBounds(tileX, tileY) || level.isOutside(tileX, tileY);
 	}
 
-	private long rollExposureThreshold(boolean wall) {
-		long min = wall ? wallMinExposure : normalMinExposure;
-		long max = wall ? wallMaxExposure : normalMaxExposure;
+	private int getEntryHealth(WeatheringEntry entry) {
+		return entry.isTile
+				? level.getTile(entry.tileX, entry.tileY).tileHealth
+				: level.getObject(entry.objectLayerID, entry.tileX, entry.tileY).objectHealth;
+	}
+
+	private long rollExposureThreshold(WeatheringEntry entry) {
+		WeatheringMaterialTier tier;
+		boolean wall = false;
+
+		if (entry.isTile) {
+			tier = MaterialWeatheringClassifier.getTileTier(level.getTile(entry.tileX, entry.tileY));
+		} else {
+			GameObject object = level.getObject(entry.objectLayerID, entry.tileX, entry.tileY);
+			tier = MaterialWeatheringClassifier.getObjectTier(object);
+			wall = object != null && object.isWall;
+		}
+
+		if (tier == null || !tier.isWeatherable()) {
+			return Long.MAX_VALUE;
+		}
+
+		long min = baseMinExposure * tier.getTimeMultiplier();
+		long max = baseMaxExposure * tier.getTimeMultiplier();
+
+		if (wall) {
+			min *= wallTimeMultiplier;
+			max *= wallTimeMultiplier;
+		}
+
 		return min + (long)(GameRandom.globalRandom.nextDouble() * (max - min + 1L));
 	}
 
-	private static String getEntryKey(int objectLayerID, int tileX, int tileY) {
+	private static String getEntryKey(WeatheringEntry entry) {
+		return entry.isTile
+				? getTileEntryKey(entry.tileX, entry.tileY)
+				: getObjectEntryKey(entry.objectLayerID, entry.tileX, entry.tileY);
+	}
+
+	private static String getObjectEntryKey(int objectLayerID, int tileX, int tileY) {
 		return objectLayerID + ":" + tileX + ":" + tileY;
+	}
+
+	private static String getTileEntryKey(int tileX, int tileY) {
+		return "tile:" + tileX + ":" + tileY;
 	}
 
 	private static boolean isInsideRegion(Region region, int tileX, int tileY) {
@@ -456,7 +467,8 @@ public class WoodWeatheringLevelData extends LevelData implements
 		private final int tileX;
 		private final int tileY;
 		private final int objectLayerID;
-		private final String objectID;
+		private final String materialID;
+		private final boolean isTile;
 		private long accumulatedRainExposure;
 		private long requiredRainExposure;
 		private long pendingDamageTime;
@@ -465,7 +477,8 @@ public class WoodWeatheringLevelData extends LevelData implements
 				int tileX,
 				int tileY,
 				int objectLayerID,
-				String objectID,
+				String materialID,
+				boolean isTile,
 				long accumulatedRainExposure,
 				long requiredRainExposure,
 				long pendingDamageTime
@@ -473,7 +486,8 @@ public class WoodWeatheringLevelData extends LevelData implements
 			this.tileX = tileX;
 			this.tileY = tileY;
 			this.objectLayerID = objectLayerID;
-			this.objectID = objectID;
+			this.materialID = materialID;
+			this.isTile = isTile;
 			this.accumulatedRainExposure = accumulatedRainExposure;
 			this.requiredRainExposure = requiredRainExposure;
 			this.pendingDamageTime = pendingDamageTime;

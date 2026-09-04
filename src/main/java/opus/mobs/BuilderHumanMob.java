@@ -28,22 +28,21 @@ public class BuilderHumanMob extends HumanShop {
     private static final String[][] recruitBarTiers = {
             {"copperbar", "ironbar", "goldbar"},
             {"goldbar", "demonicbar"},
-            {"demonicbar", "glacialbar"},
-            {"glacialbar", "tungstenbar"},
-            {"tungstenbar", "ivybar"},
-            {"ivybar", "myceliumbar"},
+            {"demonicbar", "ivybar"},
+            {"ivybar", "tungstenbar"},
+            {"tungstenbar", "glacialbar"},
+            {"glacialbar", "myceliumbar"},
             {"myceliumbar", "ancientfossilbar"},
             {"myceliumbar", "ancientfossilbar"} // Repeated intentionaly for last tier
     };
 
     private static final String[][] recruitRockTiers = {
             {"stone"},
-            {"stone", "sandstone"},
-            {"sandstone", "deepsnowstone"},
-            {"deepsnowstone", "deepstone"},
-            {"deepstone", "swampstone"},
-            {"swampstone", "deepswampstone"},
-            {"deepswampstone", "deepsandstone"},
+            {"stone", "swampstone"},
+            {"swampstone", "sandstone"},
+            {"sandstone", "deepstone"},
+            {"deepstone", "deepsnowstone"},
+            {"deepsnowstone", "deepswampstone"},
             {"deepswampstone", "deepsandstone"} // Repeated intentionaly for last tier
     };
 
