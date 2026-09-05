@@ -9,13 +9,13 @@ The goal is to make large-scale settlement construction practical without turnin
 - Dedicated **Builder** settlers with a Construction job category.
 - Reusable **Blueprint** items that can copy a structure and place persistent construction projects.
 - Multiple Builders can cooperate on the same blueprint.
-- Builders clear incorrect objects/tiles, fetch materials from settlement storage, place tiles, then place objects.
+- Builders clear incorrect objects/tiles, fetch materials from settlement storage and build them one by one.
 - Construction speed scales strongly with Builder happiness.
 - Missing materials and other blocked states are shown directly on the blueprint project.
 - **Blueprint Workstation** for renaming, editing, copying, and sharing blueprints.
 - **Project Eraser** for cancelling placed blueprint projects.
 - Optional (enabled by default) **Hardcore Damage** mode where normal passive damage recovery is disabled,\
-Builders must perform repairs, and rain causes weathering damage over time to wooden objects.
+Builders must perform repairs, and rain causes weathering damage over time to placed objects.
 - This mod is required on both the client and server.
 
 ---
@@ -55,8 +55,7 @@ A blueprint can contain:
 - Walls and doors.
 - Rotations.
 - Multi-tile objects.
-
-Obs. Wires are currently not supported. Feature planned to be added in a future release.
+- Wires and logic gates.
 
 The blueprint item itself is **not consumed** when a project is placed.
 
@@ -131,15 +130,11 @@ Likewise, if an object is already placed correctly to the corresponding blueprin
 Items dropped by clearing are moved outside the construction area so
 they do not obstruct construction and can still be collected.
 
-## 3. Tile placement
+## 3. Building
 
-After clearing is complete, Builders place required tiles/floors.
+After clearing is complete, Builders will place all tiles/floors, objects, wires and logic gates in that order.
 
-## 4. Object placement
-
-Once the required tiles are complete, Builders will place blueprint objects.
-
-## 5. Completion and cleanup
+## 4. Completion and cleanup
 
 When the project is complete, Builders return any remaining
 construction materials they are still carrying to settlement storage.
@@ -330,6 +325,42 @@ However, intact fences in that repaired line will not have their weather damage 
 Fence gates are treated as part of the same connected fence network, whether open or closed.
 
 This makes repairing large perimeter fences a bit more manageable.
+
+---
+
+# Wilderness Constructions
+
+Blocks created in world generation are immune to weather damage,
+but blocks placed by players will suffer weather damage the same as blocks in a settlement.
+
+A player might construct a temporary shack to spend the night, and it will with time break appart.
+
+If a player wants to build anything permanent off settlement, be it a road or a building or anything else,
+he needs to hire a Builder.
+
+Builders that join a player in an adventure party have a new dialogue option to do improvements on the road.
+Turning that option on will have Builders look for blocks around
+a 6 tile radius around them for player-placed weatherable blocks. If there are any
+they will use their skills to reinforce those blocks so they become immune to weather damage.
+
+This doesn't apply to blocks inside a settlement. Also new settlements (or settlements that grow into an area)
+that contains previously reinforced blocks will convert those blocks into weatherable again.
+
+A way to reinforce blocks in settlements will be added in a future release.
+
+---
+
+# Inspection Glass
+
+The **Inspection Glass** is an item that can be crafted in a basic workstation with **two glass** and an **iron bar**.
+
+While holding and selecting this item in the toolbar any player-placed weatherable objects will show an icon
+that displays the current reinforcement level, from one to four, four being immune to weather damage.
+
+At the current release, wilderness reinforcements are equivalent to a level 4 reinforcement level.
+Settlement blocks cannot be reinforced at this moment. When it is released, each reinforcement level will act
+as an added tier to the blocks base material tier. For example, reinforcing basalt blocks by one level
+will make them immune to weather damage.  
 
 ---
 
