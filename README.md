@@ -75,11 +75,11 @@ To be more precise in what you want to exclude, you can edit your blueprint afte
 
 Blueprints can be reused any number of times, or cleared and recreated from scratch.
 
-Right clicking an empty blueprint will enter creation mode.
+Right-clicking an empty blueprint will enter creation mode.
 
-Right clicking a filled blueprint will clear it.
+Right-clicking a filled blueprint will clear it.
 
-Left clicking a filled blueprint will place it in the world as a blueprint project, if conditions allow.
+Left-clicking a filled blueprint will place it in the world as a blueprint project, if conditions allow.
 This project will create a construction job for the settlement's Builders.
 
 ## Rotating a blueprint
@@ -340,7 +340,7 @@ he needs to hire a Builder.
 
 Builders that join a player in an adventure party have a new dialogue option to do improvements on the road.
 Turning that option on will have Builders look for blocks around
-a 6 tile radius around them for player-placed weatherable blocks. If there are any
+a 6 tile radius around them for player-placed weatherable blocks. If they find any
 they will use their skills to reinforce those blocks so they become immune to weather damage.
 
 This doesn't apply to blocks inside a settlement. Also new settlements (or settlements that grow into an area)
@@ -357,10 +357,13 @@ The **Inspection Glass** is an item that can be crafted in a basic workstation w
 While holding and selecting this item in the toolbar any player-placed weatherable objects will show an icon
 that displays the current reinforcement level, from one to four, four being immune to weather damage.
 
-At the current release, wilderness reinforcements are equivalent to a level 4 reinforcement level.
-Settlement blocks cannot be reinforced at this moment. When it is released, each reinforcement level will act
+Wilderness reinforcements are equivalent to a level 4 reinforcement level. In the current version of the mod,
+settlement blocks cannot be reinforced. When this feature is released, each reinforcement level will act
 as an added tier to the blocks base material tier. For example, reinforcing basalt blocks by one level
-will make them immune to weather damage.  
+will make them immune to weather damage.
+
+Right-clicking with the glass in hand will toggle the visibility of project previews on the world.
+The previews are visible by default and don't require an Inspection Glass to see.
 
 ---
 

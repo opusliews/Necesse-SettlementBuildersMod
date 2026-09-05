@@ -35,7 +35,22 @@ public final class BlueprintAreaHud {
 			new Color(200, 0, 0);
 	private static final float areaOpacity = 0.3F;
 
+	public static boolean isProjectGhostsVisible() {
+		return projectGhostsVisible;
+	}
+
+	private static boolean projectGhostsVisible = true;
+
 	private BlueprintAreaHud() {
+	}
+
+	public static boolean areProjectGhostsVisible() {
+		return projectGhostsVisible;
+	}
+
+	public static boolean toggleProjectGhostsVisible() {
+		projectGhostsVisible = !projectGhostsVisible;
+		return projectGhostsVisible;
 	}
 
 	public static void ensureAdded(Level level) {
@@ -78,6 +93,10 @@ public final class BlueprintAreaHud {
 			GameCamera camera,
 			PlayerMob player
 	) {
+		if (!projectGhostsVisible) {
+			return;
+		}
+
 		BlueprintAreaManager manager =
 				BlueprintAreaManager.get(level);
 
@@ -95,7 +114,8 @@ public final class BlueprintAreaHud {
 			PlayerMob player,
 			BlueprintAreaManager manager
 	) {
-		if (level == null
+		if (!projectGhostsVisible
+				|| level == null
 				|| camera == null
 				|| player == null
 				|| manager == null
@@ -103,16 +123,12 @@ public final class BlueprintAreaHud {
 			return;
 		}
 
-		// Areas first, so ghosts render on top.
 		for (BlueprintArea area : manager.getAreas()) {
 			if (area.isConstructionComplete()) {
 				continue;
 			}
 
-			drawAreaBackground(
-					camera,
-					area
-			);
+			drawAreaBackground(camera, area);
 		}
 
 		for (BlueprintArea area : manager.getAreas()) {
@@ -120,12 +136,7 @@ public final class BlueprintAreaHud {
 				continue;
 			}
 
-			drawAreaGhosts(
-					level,
-					camera,
-					player,
-					area
-			);
+			drawAreaGhosts(level, camera, player, area);
 		}
 	}
 
@@ -133,36 +144,23 @@ public final class BlueprintAreaHud {
 			GameCamera camera,
 			BlueprintArea area
 	) {
-		Color selectedAreaColor = (area.isConstructionBlocked()) ?
-				areaColorBlocked :
-				areaColorOk;
+		Color selectedAreaColor = area.isConstructionBlocked()
+				? areaColorBlocked
+				: areaColorOk;
 
-		int drawX =
-				camera.getTileDrawX(area.getOriginX());
+		int drawX = camera.getTileDrawX(area.getOriginX());
+		int drawY = camera.getTileDrawY(area.getOriginY());
+		int drawWidth = area.getWidth() * tileSize;
+		int drawHeight = area.getHeight() * tileSize;
 
-		int drawY =
-				camera.getTileDrawY(area.getOriginY());
-
-		int drawWidth =
-				area.getWidth() * tileSize;
-
-		int drawHeight =
-				area.getHeight() * tileSize;
-
-		Renderer.initQuadDraw(
-						drawWidth,
-						drawHeight
-				)
+		Renderer.initQuadDraw(drawWidth, drawHeight)
 				.color(
 						selectedAreaColor.getRed() / 255.0F,
 						selectedAreaColor.getGreen() / 255.0F,
 						selectedAreaColor.getBlue() / 255.0F,
 						areaOpacity
 				)
-				.draw(
-						drawX,
-						drawY
-				);
+				.draw(drawX, drawY);
 	}
 
 	private static void drawAreaGhosts(
@@ -171,37 +169,20 @@ public final class BlueprintAreaHud {
 			PlayerMob player,
 			BlueprintArea area
 	) {
-		BlueprintData blueprintData =
-				area.getBlueprintData();
+		BlueprintData blueprintData = area.getBlueprintData();
 
 		if (blueprintData == null) {
 			return;
 		}
 
-		int originX =
-				area.getOriginX();
+		int originX = area.getOriginX();
+		int originY = area.getOriginY();
 
-		int originY =
-				area.getOriginY();
+		for (BlueprintElement element : blueprintData.getElements()) {
+			int tileX = originX + element.getX();
+			int tileY = originY + element.getY();
 
-		for (
-				BlueprintElement element :
-				blueprintData.getElements()
-		) {
-			int tileX =
-					originX + element.getX();
-
-			int tileY =
-					originY + element.getY();
-
-			drawElement(
-					level,
-					camera,
-					player,
-					element,
-					tileX,
-					tileY
-			);
+			drawElement(level, camera, player, element, tileX, tileY);
 		}
 	}
 
@@ -214,39 +195,19 @@ public final class BlueprintAreaHud {
 			int tileY
 	) {
 		if (element.getTileID() != null) {
-			GameTile tile =
-					TileRegistry.getTile(
-							element.getTileID()
-					);
+			GameTile tile = TileRegistry.getTile(element.getTileID());
 
 			if (tile != null) {
-				tile.drawPreview(
-						level,
-						tileX,
-						tileY,
-						ghostAlpha,
-						player,
-						camera
-				);
+				tile.drawPreview(level, tileX, tileY, ghostAlpha, player, camera);
 			}
 		}
 
 		if (element.getObjectID() != null) {
-			GameObject object =
-					ObjectRegistry.getObject(
-							element.getObjectID()
-					);
+			GameObject object = ObjectRegistry.getObject(element.getObjectID());
 
 			if (object != null && object.isMultiTileMaster()) {
 				if (object instanceof WallObject) {
-					drawWallPreview(
-							(WallObject)object,
-							level,
-							tileX,
-							tileY,
-							player,
-							camera
-					);
+					drawWallPreview((WallObject)object, level, tileX, tileY, player, camera);
 				} else {
 					object.drawMultiTilePreview(
 							level,
@@ -271,12 +232,9 @@ public final class BlueprintAreaHud {
 			GameCamera camera
 	) {
 		SharedTextureDrawOptions options =
-				new SharedTextureDrawOptions(
-						WallObject.generatedWallTexture
-				);
+				new SharedTextureDrawOptions(WallObject.generatedWallTexture);
 
-		boolean previousSmoothLighting =
-				Settings.smoothLighting;
+		boolean previousSmoothLighting = Settings.smoothLighting;
 
 		try {
 			Settings.smoothLighting = false;
@@ -289,18 +247,12 @@ public final class BlueprintAreaHud {
 					level.lightManager.newLight(150.0F),
 					null,
 					camera,
-					// Deliberately null:
-					// blueprint ghosts should not fade based on player position.
 					null
 			);
 		} finally {
-			Settings.smoothLighting =
-					previousSmoothLighting;
+			Settings.smoothLighting = previousSmoothLighting;
 		}
 
-		options.forEachDraw(draw -> {
-			draw.alpha(0.5F);
-		}).draw();
+		options.forEachDraw(draw -> draw.alpha(0.5F)).draw();
 	}
-
 }
