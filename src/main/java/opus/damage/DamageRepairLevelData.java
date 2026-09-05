@@ -255,7 +255,7 @@ public class DamageRepairLevelData extends LevelData implements RegionLoadedList
 		for (int layerID = 0; layerID < necesse.engine.registries.ObjectLayerRegistry.getTotalLayers(); layerID++) {
 			GameObject object = level.getObject(layerID, tileX, tileY);
 
-			if (WoodWeatheringLevelData.isWeatherableFence(object)) {
+			if (WeatheringLevelData.isWeatherableFence(object)) {
 				return true;
 			}
 		}
@@ -282,7 +282,7 @@ public class DamageRepairLevelData extends LevelData implements RegionLoadedList
 
 			GameObject object = level.getObject(layerID, tileX, tileY);
 
-			if (WoodWeatheringLevelData.isWeatherableFence(object)) {
+			if (WeatheringLevelData.isWeatherableFence(object)) {
 				return true;
 			}
 		}
@@ -383,7 +383,7 @@ public class DamageRepairLevelData extends LevelData implements RegionLoadedList
 		}
 
 		if (repairedObjectDamage) {
-			WoodWeatheringLevelData weathering = WoodWeatheringLevelData.get(level, false);
+			WeatheringLevelData weathering = WeatheringLevelData.get(level, false);
 
 			if (weathering != null) {
 				weathering.resetWeatheringAt(tileX, tileY);

@@ -5,7 +5,7 @@ import necesse.level.maps.Level;
 import net.bytebuddy.asm.Advice;
 import opus.damage.DamageRepairLevelData;
 import opus.damage.HardcoreDamage;
-import opus.damage.WoodWeatheringLevelData;
+import opus.damage.WeatheringLevelData;
 import opus.settler.BuilderRequestLevelData;
 
 @ModMethodPatch(target = Level.class, name = "onLoadingComplete", arguments = {})
@@ -20,7 +20,7 @@ public class LevelLoadingCompletePatch {
 
 		if (HardcoreDamage.isServerEnabled()) {
 			DamageRepairLevelData.get(level, true);
-			WoodWeatheringLevelData.get(level, true);
+			WeatheringLevelData.get(level, true);
 		}
 	}
 }
