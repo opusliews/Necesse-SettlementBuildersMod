@@ -180,9 +180,9 @@ public final class InspectionGlassHud {
 			int pipY = iconY + 14 - i * 4;
 
 			if (reinforced) {
-				drawQuad(iconX + 2, pipY, 5, 2, 34, 177, 76);
+				drawQuad(iconX + 2, pipY, 5, 2, 0, 255, 0);
 			} else {
-				drawQuad(iconX + 2, pipY, 5, 2, 127, 127, 127);
+				drawQuad(iconX + 2, pipY, 5, 2, 180, 180, 180);
 			}
 		}
 	}

@@ -198,12 +198,14 @@ public class BuilderHumanMob extends HumanShop {
 
 	private void startNextRoadRepair(WeatheringLevelData weathering) {
 		while (!roadRepairQueue.isEmpty()) {
-			Point target = roadRepairQueue.removeFirst();
+			Point target = getNearestQueuedRoadRepairTarget(weathering);
 
-			if (!isRoadRepairTargetStillValid(weathering, target)) {
-				continue;
+			if (target == null) {
+				roadRepairQueue.clear();
+				return;
 			}
 
+			roadRepairQueue.remove(target);
 			Point workTile = findRoadRepairWorkTile(target);
 
 			if (workTile == null) {
@@ -218,6 +220,26 @@ public class BuilderHumanMob extends HumanShop {
 					: 0L;
 			return;
 		}
+	}
+
+	private Point getNearestQueuedRoadRepairTarget(WeatheringLevelData weathering) {
+		Point nearest = null;
+		int nearestDistance = Integer.MAX_VALUE;
+
+		for (Point target : roadRepairQueue) {
+			if (!isRoadRepairTargetStillValid(weathering, target)) {
+				continue;
+			}
+
+			int distance = distanceSquaredToTile(target.x, target.y);
+
+			if (distance < nearestDistance) {
+				nearest = target;
+				nearestDistance = distance;
+			}
+		}
+
+		return nearest;
 	}
 
 	private Point findRoadRepairWorkTile(Point target) {
@@ -287,37 +309,31 @@ public class BuilderHumanMob extends HumanShop {
 
 	@Override
 	public MoveToTile getMoveToPoint() {
-		MoveToTile vanillaMove = super.getMoveToPoint();
+		if (activeRoadRepairTarget != null
+				&& activeRoadRepairWorkTile != null
+				&& !atRoadRepairWorkTile) {
+			Point workTile = activeRoadRepairWorkTile;
 
-		if (vanillaMove != null) {
-			return vanillaMove;
+			return new MoveToTile(workTile, false) {
+				@Override
+				public boolean moveIfPathFailed(float tileDistance) {
+					return false;
+				}
+
+				@Override
+				public boolean isAtLocation(float tileDistance, boolean foundPath) {
+					return foundPath && tileDistance < 0.75F;
+				}
+
+				@Override
+				public void onArrivedAtLocation() {
+					atRoadRepairWorkTile = true;
+					activeRoadRepairCompleteTime = getLevel().getTime() + getWorkActionDelay();
+				}
+			};
 		}
 
-		if (activeRoadRepairTarget == null
-				|| activeRoadRepairWorkTile == null
-				|| atRoadRepairWorkTile) {
-			return null;
-		}
-
-		Point workTile = activeRoadRepairWorkTile;
-
-		return new MoveToTile(workTile, false) {
-			@Override
-			public boolean moveIfPathFailed(float tileDistance) {
-				return false;
-			}
-
-			@Override
-			public boolean isAtLocation(float tileDistance, boolean foundPath) {
-				return foundPath && tileDistance < 0.75F;
-			}
-
-			@Override
-			public void onArrivedAtLocation() {
-				atRoadRepairWorkTile = true;
-				activeRoadRepairCompleteTime = getLevel().getTime() + getWorkActionDelay();
-			}
-		};
+		return super.getMoveToPoint();
 	}
 
 	@Override
