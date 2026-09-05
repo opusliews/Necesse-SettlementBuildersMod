@@ -17,6 +17,7 @@ import opus.damage.DamageRepairLevelData;
 import opus.damage.HardcoreDamage;
 import opus.logging.Logging;
 import opus.mobs.BuilderHumanMob;
+import opus.network.PacketBuilderObjectPlaceSound;
 
 public class RepairLevelJob extends TileLevelJob {
 	private long nextActionTime;
@@ -97,6 +98,14 @@ public class RepairLevelJob extends TileLevelJob {
 				}
 
 				DamageRepairLevelData.repairDamage(getLevel(), tileX, tileY);
+
+				getLevel().getServer().network.sendToClientsWithTile(
+						new PacketBuilderObjectPlaceSound(tileX, tileY),
+						getLevel(),
+						tileX,
+						tileY
+				);
+
 				Logging.logMessage(
 						"Builder " + builder.getUniqueID() + " repaired damage at " + tileX + ", " + tileY
 				);

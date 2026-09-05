@@ -23,6 +23,7 @@ import necesse.level.maps.levelData.settlementData.ServerSettlementData;
 import opus.damage.DamageRepairLevelData;
 import opus.damage.WeatheringLevelData;
 import opus.logging.Logging;
+import opus.network.PacketBuilderObjectPlaceSound;
 
 import java.awt.Point;
 import java.util.ArrayDeque;
@@ -164,6 +165,14 @@ public class BuilderHumanMob extends HumanShop {
 		Point repaired = activeRoadRepairTarget;
 		DamageRepairLevelData.repairDamage(level, repaired.x, repaired.y);
 		weathering.reinforceWildernessAt(repaired.x, repaired.y);
+
+		level.getServer().network.sendToClientsWithTile(
+				new PacketBuilderObjectPlaceSound(repaired.x, repaired.y),
+				level,
+				repaired.x,
+				repaired.y
+		);
+
 
 		Logging.logMessage(
 				"Builder " + getUniqueID() + " reinforced wilderness construction at " + repaired.x + ", " + repaired.y
