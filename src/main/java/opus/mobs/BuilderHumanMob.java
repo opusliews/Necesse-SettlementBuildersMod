@@ -9,9 +9,11 @@ import necesse.engine.registries.ItemRegistry;
 import necesse.engine.registries.SettlerRegistry;
 import necesse.engine.save.LoadData;
 import necesse.engine.save.SaveData;
+import necesse.engine.util.GameMath;
 import necesse.engine.util.GameRandom;
 import necesse.engine.world.WorldFile;
 import necesse.engine.world.worldData.SettlementsWorldData;
+import necesse.entity.mobs.PlayerMob;
 import necesse.entity.mobs.friendly.human.MoveToTile;
 import necesse.entity.mobs.friendly.human.humanShop.HumanShop;
 import necesse.entity.mobs.friendly.human.humanShop.SellingShopItem;
@@ -29,15 +31,21 @@ import java.awt.Point;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Map;
+import java.util.WeakHashMap;
 import java.util.stream.Stream;
 
 public class BuilderHumanMob extends HumanShop {
 	public static final int maxWorkInventoryStacks = 5;
 	private static final int buildersPerRecruitTier = 3;
 	private static final int roadRepairRadius = 6;
+	private static final int roadRepairFollowRange = 20;
 	private static final long roadRepairCheckInterval = 2000L;
+	private static final Map<Level, Map<Long, Integer>> roadRepairClaims =
+			Collections.synchronizedMap(new WeakHashMap<>());
 
 	private boolean repairOnRoad;
 	private final ArrayDeque<Point> roadRepairQueue = new ArrayDeque<>();
@@ -88,6 +96,7 @@ public class BuilderHumanMob extends HumanShop {
 		this.shop.addSellingItem("builderboots", new SellingShopItem()).setStaticPriceBasedOnHappiness(75, 150, 20);
 		this.shop.addSellingItem("blueprintItem", new SellingShopItem()).setStaticPriceBasedOnHappiness(75, 125, 20);
 		this.shop.addSellingItem("projecteraser", new SellingShopItem()).setStaticPriceBasedOnHappiness(75, 150, 20);
+		this.shop.addSellingItem("inspectionglass", new SellingShopItem()).setStaticPriceBasedOnHappiness(75, 150, 20);
 	}
 
 	@Override
@@ -114,6 +123,13 @@ public class BuilderHumanMob extends HumanShop {
 		}
 
 		Level level = getLevel();
+		PlayerMob partyOwner = adventureParty.getPlayerMob();
+
+		if (partyOwner == null || partyOwner.getLevel() != level || isOutsideRoadRepairFollowRange(partyOwner)) {
+			clearRoadRepairState();
+			return;
+		}
+
 		WeatheringLevelData weathering = WeatheringLevelData.get(level, false);
 
 		if (weathering == null || weathering.isSettlementAt(getTileX(), getTileY())) {
@@ -173,7 +189,6 @@ public class BuilderHumanMob extends HumanShop {
 				repaired.y
 		);
 
-
 		Logging.logMessage(
 				"Builder " + getUniqueID() + " reinforced wilderness construction at " + repaired.x + ", " + repaired.y
 		);
@@ -215,9 +230,15 @@ public class BuilderHumanMob extends HumanShop {
 			}
 
 			roadRepairQueue.remove(target);
+
+			if (!claimRoadRepairTarget(target)) {
+				continue;
+			}
+
 			Point workTile = findRoadRepairWorkTile(target);
 
 			if (workTile == null) {
+				releaseRoadRepairTarget(target);
 				continue;
 			}
 
@@ -236,7 +257,8 @@ public class BuilderHumanMob extends HumanShop {
 		int nearestDistance = Integer.MAX_VALUE;
 
 		for (Point target : roadRepairQueue) {
-			if (!isRoadRepairTargetStillValid(weathering, target)) {
+			if (!isRoadRepairTargetStillValid(weathering, target)
+					|| isRoadRepairTargetClaimedByOther(target)) {
 				continue;
 			}
 
@@ -249,6 +271,69 @@ public class BuilderHumanMob extends HumanShop {
 		}
 
 		return nearest;
+	}
+
+	private boolean claimRoadRepairTarget(Point target) {
+		Level level = getLevel();
+		long key = GameMath.getUniqueLongKey(target.x, target.y);
+		int builderUniqueID = getUniqueID();
+
+		synchronized (roadRepairClaims) {
+			Map<Long, Integer> claims = roadRepairClaims.computeIfAbsent(level, ignored -> new HashMap<>());
+			Integer existingBuilder = claims.get(key);
+
+			if (existingBuilder != null && existingBuilder != builderUniqueID) {
+				return false;
+			}
+
+			claims.put(key, builderUniqueID);
+			return true;
+		}
+	}
+
+	private boolean isRoadRepairTargetClaimedByOther(Point target) {
+		Level level = getLevel();
+		long key = GameMath.getUniqueLongKey(target.x, target.y);
+		int builderUniqueID = getUniqueID();
+
+		synchronized (roadRepairClaims) {
+			Map<Long, Integer> claims = roadRepairClaims.get(level);
+
+			if (claims == null) {
+				return false;
+			}
+
+			Integer existingBuilder = claims.get(key);
+			return existingBuilder != null && existingBuilder != builderUniqueID;
+		}
+	}
+
+	private void releaseRoadRepairTarget(Point target) {
+		if (target == null) {
+			return;
+		}
+
+		Level level = getLevel();
+		long key = GameMath.getUniqueLongKey(target.x, target.y);
+		int builderUniqueID = getUniqueID();
+
+		synchronized (roadRepairClaims) {
+			Map<Long, Integer> claims = roadRepairClaims.get(level);
+
+			if (claims == null) {
+				return;
+			}
+
+			Integer existingBuilder = claims.get(key);
+
+			if (existingBuilder != null && existingBuilder == builderUniqueID) {
+				claims.remove(key);
+			}
+
+			if (claims.isEmpty()) {
+				roadRepairClaims.remove(level);
+			}
+		}
 	}
 
 	private Point findRoadRepairWorkTile(Point target) {
@@ -296,6 +381,12 @@ public class BuilderHumanMob extends HumanShop {
 		return dx * dx + dy * dy;
 	}
 
+	private boolean isOutsideRoadRepairFollowRange(PlayerMob player) {
+		int dx = player.getTileX() - getTileX();
+		int dy = player.getTileY() - getTileY();
+		return dx * dx + dy * dy >= roadRepairFollowRange * roadRepairFollowRange;
+	}
+
 	private boolean isRoadRepairTargetStillValid(WeatheringLevelData weathering, Point target) {
 		return Math.abs(target.x - getTileX()) <= roadRepairRadius
 				&& Math.abs(target.y - getTileY()) <= roadRepairRadius
@@ -304,6 +395,7 @@ public class BuilderHumanMob extends HumanShop {
 	}
 
 	private void finishCurrentRoadRepairTarget() {
+		releaseRoadRepairTarget(activeRoadRepairTarget);
 		activeRoadRepairTarget = null;
 		activeRoadRepairWorkTile = null;
 		atRoadRepairWorkTile = false;
@@ -362,22 +454,23 @@ public class BuilderHumanMob extends HumanShop {
 
 	@Override
 	public List<InventoryItem> getRecruitItems(ServerClient client) {
-		int tier = getRecruitTier(client);
-
-		GameRandom random = new GameRandom((long)this.getSettlerSeed() * 227L + tier * 7919L);
-		String barID = getRecruitBarID(random, tier);
-		String rockID = getRecruitRockID(random, tier);
-		ArrayList<InventoryItem> items = new ArrayList<>();
-
-		items.add(new InventoryItem(barID, random.getIntBetween(4, 10)));
-		items.add(new InventoryItem(rockID, random.getIntBetween(25, 50)));
-
-		if (tier == 7) {
-			String crystalID = getRecruitCrystalID(random);
-			items.add(new InventoryItem(crystalID, random.getIntBetween(3, 7)));
-		}
-
-		return items;
+		return Collections.emptyList();
+//		int tier = getRecruitTier(client);
+//
+//		GameRandom random = new GameRandom((long)this.getSettlerSeed() * 227L + tier * 7919L);
+//		String barID = getRecruitBarID(random, tier);
+//		String rockID = getRecruitRockID(random, tier);
+//		ArrayList<InventoryItem> items = new ArrayList<>();
+//
+//		items.add(new InventoryItem(barID, random.getIntBetween(4, 10)));
+//		items.add(new InventoryItem(rockID, random.getIntBetween(25, 50)));
+//
+//		if (tier == 7) {
+//			String crystalID = getRecruitCrystalID(random);
+//			items.add(new InventoryItem(crystalID, random.getIntBetween(3, 7)));
+//		}
+//
+//		return items;
 	}
 
 	private int getCombinedBuilderCount(ServerClient client) {
@@ -460,6 +553,10 @@ public class BuilderHumanMob extends HumanShop {
 
 	public void setRepairOnRoad(boolean repairOnRoad) {
 		this.repairOnRoad = repairOnRoad;
+
+		if (!repairOnRoad) {
+			clearRoadRepairState();
+		}
 	}
 
 	@Override
