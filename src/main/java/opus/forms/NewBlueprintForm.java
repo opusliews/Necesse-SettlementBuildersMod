@@ -22,6 +22,7 @@ import necesse.level.gameObject.GameObject;
 import necesse.level.gameTile.GameTile;
 import necesse.level.maps.Level;
 import necesse.level.maps.multiTile.MultiTile;
+import opus.blueprint.BlueprintInfrastructureSupport;
 import opus.logging.Logging;
 import opus.tools.BlueprintData;
 import opus.tools.BlueprintElement;
@@ -48,7 +49,6 @@ public class NewBlueprintForm extends Form {
 		super("newBlueprintForm", 380, 110);
 
 		this.onBlueprintCreated = onBlueprintCreated;
-
 		this.mainGame = mainGame;
 
 		this.addComponent(
@@ -89,7 +89,6 @@ public class NewBlueprintForm extends Form {
 				)
 		);
 
-		// Create button
 		FormLocalTextButton createButton = this.addComponent(
 				new FormLocalTextButton(
 						new StaticMessage("Create Blueprint"),
@@ -117,13 +116,7 @@ public class NewBlueprintForm extends Form {
 
 			if (selection == null || selection.isEmpty()) {
 				Client client = mainGame.getClient();
-				client.setMessage(
-						Localization.translate(
-								"misc",
-								"blueprintcreatedempty"
-						),
-						Color.RED
-				);
+				client.setMessage(Localization.translate("misc", "blueprintcreatedempty"), Color.RED);
 				return;
 			}
 
@@ -131,83 +124,59 @@ public class NewBlueprintForm extends Form {
 
 			if (blueprintName.isEmpty()) {
 				Client client = mainGame.getClient();
-				client.setMessage(
-						Localization.translate(
-								"misc",
-								"blueprintcreatednameless"
-						),
-						Color.RED
-				);
+				client.setMessage(Localization.translate("misc", "blueprintcreatednameless"), Color.RED);
 				return;
 			}
 
 			Level level = blueprintTool.getLevel();
-
 			List<String> excludedObjectIDs = blueprintTool.getExcludedObjectIDs();
 			List<String> excludedTileIDs = blueprintTool.getExcludedTileIDs();
-
 			List<BlueprintElement> blueprintElements = new ArrayList<>();
 
 			for (int x = selection.x; x < selection.x + selection.width; x++) {
 				for (int y = selection.y; y < selection.y + selection.height; y++) {
 					int relativeX = x - selection.x;
 					int relativeY = y - selection.y;
-
 					GameObject object = level.getObject(x, y);
 					GameTile tile = level.getTile(x, y);
-
 					BlueprintElement be = new BlueprintElement(relativeX, relativeY);
 
 					if (canIncludeBlueprintObject(level, selection, excludedObjectIDs, x, y, object)) {
 						be.setObjectID(object.getStringID());
 						be.setRotation(level.getObjectRotation(x, y));
-
 						Logging.logMessage("Object found: " + object.getDisplayName());
 					}
-					
+
 					if (isBlueprintTile(tile)
 							&& isObtainableBlueprintTile(tile)
-							&& !excludedTileIDs.contains(tile.getStringID())
-					) {
+							&& !excludedTileIDs.contains(tile.getStringID())) {
 						be.setTileID(tile.getStringID());
-
 						Logging.logMessage("Tile found: " + tile.getDisplayName());
 					}
+
+					BlueprintInfrastructureSupport.captureElement(level, x, y, be);
 
 					if (!be.isEmpty()) {
 						blueprintElements.add(be);
 					}
 				}
 			}
+
 			if (blueprintElements.isEmpty()) {
 				Client client = mainGame.getClient();
-				client.setMessage(
-						Localization.translate(
-								"misc",
-								"blueprintcreatedempty2"
-						),
-						Color.RED
-				);
-			}
-			else {
-				BlueprintData blueprintData = new BlueprintData(
-						selection.width, selection.height, blueprintElements);
+				client.setMessage(Localization.translate("misc", "blueprintcreatedempty2"), Color.RED);
+			} else {
+				BlueprintData blueprintData = new BlueprintData(selection.width, selection.height, blueprintElements);
 
 				if (onBlueprintCreated != null) {
-					onBlueprintCreated.accept(
-							blueprintName,
-							blueprintData
-					);
+					onBlueprintCreated.accept(blueprintName, blueprintData);
 				}
 
 				this.onCancel();
 			}
 		});
 
-		cancelButton.onClicked(event -> {
-			this.onCancel();
-		});
-
+		cancelButton.onClicked(event -> this.onCancel());
 		this.setPosition(10, 30);
 	}
 
@@ -245,8 +214,7 @@ public class NewBlueprintForm extends Form {
 			}
 
 			if (level.getObjectID(value.tileX, value.tileY) != expectedObjectID
-					|| level.getObjectRotation(value.tileX, value.tileY) != rotation
-			) {
+					|| level.getObjectRotation(value.tileX, value.tileY) != rotation) {
 				return false;
 			}
 		}
@@ -266,10 +234,7 @@ public class NewBlueprintForm extends Form {
 		mainGame.formManager.creative.setHidden(true);
 	}
 
-
-	public static void openBlueprintCreation(
-			MainGame mainGame, BiConsumer<String, BlueprintData> onBlueprintCreated
-	) {
+	public static void openBlueprintCreation(MainGame mainGame, BiConsumer<String, BlueprintData> onBlueprintCreated) {
 		if (builderForm != null) {
 			return;
 		}
@@ -291,10 +256,7 @@ public class NewBlueprintForm extends Form {
 				}
 		);
 
-		GameToolManager.setGameTool(
-				blueprintTool,
-				BlueprintSelectionTool.class
-		);
+		GameToolManager.setGameTool(blueprintTool, BlueprintSelectionTool.class);
 	}
 
 	public static void frameTick(MainGame mainGame, TickManager tickManager, GameWindow gameWindow) {
@@ -302,9 +264,9 @@ public class NewBlueprintForm extends Form {
 			if (builderForm != null) {
 				builderForm.onCancel();
 			}
-
 			return;
 		}
+
 		if (!mainGame.formManager.pauseMenu.isHidden()) {
 			if (builderForm != null) {
 				builderForm.onCancel();
@@ -317,21 +279,16 @@ public class NewBlueprintForm extends Form {
 		}
 	}
 
-	// ESC Pressed handler
 	private void onToolCancelled() {
 		builderForm = null;
 		blueprintTool = null;
-
 		this.mainGame.formManager.removeComponent(this);
 		this.dispose();
-
 		this.mainGame.formManager.updateActive(true);
 	}
 
-	// Cancel Pressed handler
 	protected void onCancel() {
 		builderForm = null;
-
 		this.mainGame.formManager.removeComponent(this);
 
 		if (blueprintTool != null) {
@@ -340,7 +297,6 @@ public class NewBlueprintForm extends Form {
 		}
 
 		this.dispose();
-
 		this.mainGame.formManager.updateActive(true);
 	}
 }

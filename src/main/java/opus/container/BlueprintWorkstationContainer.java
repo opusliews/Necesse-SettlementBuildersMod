@@ -77,15 +77,18 @@ public class BlueprintWorkstationContainer extends OEInventoryContainer {
 
 				boolean removeTile = value.startsWith("tile:");
 				boolean removeObject = value.startsWith("object:");
+				boolean removeWire = value.equals("wire:all");
+				boolean removeLogicGate = value.startsWith("logicgate:");
 
-				if (!removeTile && !removeObject) {
+				if (!removeTile && !removeObject && !removeWire && !removeLogicGate) {
 					return;
 				}
 
 				String id = value.substring(value.indexOf(':') + 1);
 				boolean changed = false;
+				java.util.List<BlueprintElement> elements = data.getElements();
 
-				for (BlueprintElement element : data.getElements()) {
+				for (BlueprintElement element : elements) {
 					if (removeTile && id.equals(element.getTileID())) {
 						element.setTileID(null);
 						changed = true;
@@ -95,21 +98,29 @@ public class BlueprintWorkstationContainer extends OEInventoryContainer {
 						element.setObjectID(null);
 						changed = true;
 					}
+
+					if (removeWire && element.getWireMask() != 0) {
+						element.setWireMask(0);
+						changed = true;
+					}
+
+					if (removeLogicGate && id.equals(element.getLogicGateID())) {
+						element.setLogicGateID(null);
+						element.setLogicGateData(null);
+						element.setLogicGateRotation(0);
+						changed = true;
+					}
 				}
 
 				if (!changed) {
 					return;
 				}
 
-				data.getElements().removeIf(BlueprintElement::isEmpty);
+				elements.removeIf(BlueprintElement::isEmpty);
 
 				blueprintItem.setBlueprintData(
 						item,
-						new BlueprintData(
-								data.getWidth(),
-								data.getHeight(),
-								data.getElements()
-						)
+						new BlueprintData(data.getWidth(), data.getHeight(), elements)
 				);
 
 				markBlueprintChanged();
@@ -138,8 +149,7 @@ public class BlueprintWorkstationContainer extends OEInventoryContainer {
 				if (element.getX() < 0
 						|| element.getY() < 0
 						|| element.getX() >= data.getWidth()
-						|| element.getY() >= data.getHeight()
-				) {
+						|| element.getY() >= data.getHeight()) {
 					return null;
 				}
 			}

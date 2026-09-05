@@ -4,6 +4,7 @@ import necesse.engine.gameLoop.tickManager.TickManager;
 import necesse.engine.localization.message.GameMessage;
 import necesse.engine.localization.message.StaticMessage;
 import necesse.engine.network.client.Client;
+import necesse.engine.registries.LogicGateRegistry;
 import necesse.engine.registries.ObjectRegistry;
 import necesse.engine.registries.TileRegistry;
 import necesse.engine.window.GameWindow;
@@ -18,6 +19,7 @@ import necesse.gfx.forms.presets.containerComponent.ContainerFormSwitcher;
 import necesse.gfx.gameFont.FontOptions;
 import necesse.gfx.ui.ButtonColor;
 import necesse.inventory.InventoryItem;
+import necesse.level.gameLogicGate.GameLogicGate;
 import necesse.level.gameObject.GameObject;
 import necesse.level.gameTile.GameTile;
 import opus.container.BlueprintWorkstationContainer;
@@ -306,34 +308,53 @@ public class BlueprintWorkstationContainerForm extends ContainerFormSwitcher {
 			if (element.getTileID() != null) {
 				String tileID = element.getTileID();
 				String key = "tile:" + tileID;
-
 				ElementGroup group = groups.get(key);
 
 				if (group == null) {
 					GameTile tile = TileRegistry.getTile(tileID);
 					String name = tile == null ? tileID : tile.getDisplayName();
-
 					group = new ElementGroup(key, name);
 					groups.put(key, group);
 				}
-
 				group.count++;
 			}
 
 			if (element.getObjectID() != null) {
 				String objectID = element.getObjectID();
 				String key = "object:" + objectID;
-
 				ElementGroup group = groups.get(key);
 
 				if (group == null) {
 					GameObject object = ObjectRegistry.getObject(objectID);
 					String name = object == null ? objectID : object.getDisplayName();
-
 					group = new ElementGroup(key, name);
 					groups.put(key, group);
 				}
+				group.count++;
+			}
 
+			if (element.getWireMask() != 0) {
+				String key = "wire:all";
+				ElementGroup group = groups.get(key);
+				if (group == null) {
+					group = new ElementGroup(key, "Wire");
+					groups.put(key, group);
+				}
+				group.count += Integer.bitCount(element.getWireMask());
+			}
+
+			if (element.getLogicGateID() != null) {
+				String gateID = element.getLogicGateID();
+				String key = "logicgate:" + gateID;
+				ElementGroup group = groups.get(key);
+
+				if (group == null) {
+					int gateNumericID = LogicGateRegistry.getLogicGateID(gateID);
+					GameLogicGate gate = gateNumericID < 0 ? null : LogicGateRegistry.getLogicGate(gateNumericID);
+					String name = gate == null ? gateID : gate.getDisplayName();
+					group = new ElementGroup(key, name);
+					groups.put(key, group);
+				}
 				group.count++;
 			}
 		}

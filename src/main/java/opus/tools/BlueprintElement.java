@@ -10,12 +10,15 @@ public class BlueprintElement {
 
 	private String tileID;
 	private String objectID;
+	private int wireMask;
+	private String logicGateID;
+	private String logicGateData;
+	private int logicGateRotation;
 
 	private int rotation;
 
-
 	public boolean isEmpty() {
-		return tileID == null && objectID == null;
+		return tileID == null && objectID == null && wireMask == 0 && logicGateID == null;
 	}
 
 	public int getX() {
@@ -34,6 +37,21 @@ public class BlueprintElement {
 		return objectID;
 	}
 
+	public int getWireMask() {
+		return wireMask;
+	}
+
+	public String getLogicGateID() {
+		return logicGateID;
+	}
+
+	public String getLogicGateData() {
+		return logicGateData;
+	}
+
+	public int getLogicGateRotation() {
+		return logicGateRotation;
+	}
 
 	public void setTileID(String tileID) {
 		this.tileID = tileID;
@@ -41,6 +59,22 @@ public class BlueprintElement {
 
 	public void setObjectID(String objectID) {
 		this.objectID = objectID;
+	}
+
+	public void setWireMask(int wireMask) {
+		this.wireMask = wireMask & 0xF;
+	}
+
+	public void setLogicGateID(String logicGateID) {
+		this.logicGateID = logicGateID;
+	}
+
+	public void setLogicGateData(String logicGateData) {
+		this.logicGateData = logicGateData;
+	}
+
+	public void setLogicGateRotation(int logicGateRotation) {
+		this.logicGateRotation = Math.floorMod(logicGateRotation, 4);
 	}
 
 	public int getRotation() {
